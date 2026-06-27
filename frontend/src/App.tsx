@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+﻿import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { authApi } from './api/auth'
 import { User } from './types'
@@ -41,7 +41,7 @@ export default function App() {
         <Route path="/register" element={<RegisterPage onRegister={setUser} />} />
         <Route path="/" element={
           <PrivateRoute user={user}>
-            <Layout user={user} onLogout={() => { localStorage.removeItem('token'); setUser(null) }} />
+            <Layout user={user!} onLogout={() => { localStorage.removeItem('token'); setUser(null) }} />
           </PrivateRoute>
         }>
           <Route index element={<DashboardPage />} />
@@ -58,3 +58,4 @@ export default function App() {
     </BrowserRouter>
   )
 }
+
