@@ -1,17 +1,16 @@
-from fastapi import FastAPI
+﻿from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import Base, engine
 from app.routers import auth, store, suppliers, ingredients, recipes, dashboard, sales, weather, export
 
-# DB テーブル自動作成（本番はAlembicを使用）
-Base.metadata.create_all(bind=engine)
+# DB 繝・・繝悶Ν閾ｪ蜍穂ｽ懈・・域悽逡ｪ縺ｯAlembic繧剃ｽｿ逕ｨ・・Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="MenuCost API", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -33,3 +32,4 @@ def root():
 @app.get("/health")
 def health():
     return {"status": "healthy"}
+
