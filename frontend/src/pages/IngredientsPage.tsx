@@ -1,0 +1,185 @@
+import { useEffect, useState } from 'react'
+import { ingredientApi } from '../api/ingredients'
+import { Ingredient, PriceHistory } from '../types'
+import { Plus, Search, Pencil, Trash2, X, TrendingUp } from 'lucide-react'
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
+
+const CATEGORIES = ['肉類', '魚介類', '野菜', '乳製品', '調味料', '飲料', 'その他']
+
+function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+      <div className="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-md">
+        <div className="flex items-center justify-between p-4 border-b border-gray-800">
+          <h3 className="font-semibold">{title}</h3>
+          <button onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button>
+        </div>
+        <div className="p-4">{children}</div>
+      </div>
+    </div>
+  )
+}
+
+export default function IngredientsPage() {
+  const [ingredients, setIngredients] = useState<Ingredient[]>([])
+  const [search, setSearch] = useState('')
+  const [category, setCategory] = useState('')
+  const [editing, setEditing] = useState<Ingredient | null | 'new'>(null)
+  const [history, setHistory] = useState<{ ing: Ingredient; data: PriceHistory[] } | null>(null)
+  const [form, setForm] = useState({ name: '', unit: '', unit_price: '', category: '', note: '' })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const load = () => ingredientApi.list({ q: search || undefined, category: category || undefined }).then(setIngredients)
+  useEffect(() => { load() }, [search, category])
+
+  const openNew = () => { setForm({ name: '', unit: 'g', unit_price: '', category: '', note: '' }); setEditing('new') }
+  const openEdit = (i: Ingredient) => { setForm({ name: i.name, unit: i.unit, unit_price: String(i.unit_price), category: i.category || '', note: i.note || '' }); setEditing(i) }
+
+  const save = async () => {
+    setLoading(true); setError('')
+    try {
+      const data = { ...form, unit_price: Number(form.unit_price), category: form.category || undefined }
+      if (editing === 'new') await ingredientApi.create(data as any)
+      else if (editing) await ingredientApi.update(editing.id, data as any)
+      setEditing(null); load()
+    } catch (e: any) { setError(e.response?.data?.detail || 'エラーが発生しました') }
+    finally { setLoading(false) }
+  }
+
+  const remove = async (i: Ingredient) => {
+    if (!confirm(`「${i.name}」を削除しますか？`)) return
+    try { await ingredientApi.delete(i.id); load() }
+    catch (e: any) { alert(e.response?.data?.detail || '削除できません') }
+  }
+
+  const showHistory = async (i: Ingredient) => {
+    const data = await ingredientApi.priceHistory(i.id)
+    setHistory({ ing: i, data })
+  }
+
+  return (
+    <div className="max-w-5xl space-y-4">
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-bold">食材管理</h1>
+        <button onClick={openNew} className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-sm px-4 py-2 rounded-lg transition-colors">
+          <Plus className="w-4 h-4" /> 食材を追加
+        </button>
+      </div>
+
+      {/* フィルター */}
+      <div className="flex gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-48">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="食材名で検索..."
+            className="w-full bg-gray-900 border border-gray-700 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-orange-500" />
+        </div>
+        <select value={category} onChange={e => setCategory(e.target.value)}
+          className="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500">
+          <option value="">すべてのカテゴリ</option>
+          {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+        <button onClick={() => { const url = '/api/export/ingredients.csv'; window.open(url) }}
+          className="text-sm text-gray-400 hover:text-gray-200 px-3 py-2 border border-gray-700 rounded-lg">CSV出力</button>
+      </div>
+
+      {/* テーブル */}
+      <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-gray-800 text-gray-400 text-xs">
+              <th className="text-left px-4 py-3">食材名</th>
+              <th className="text-left px-4 py-3">カテゴリ</th>
+              <th className="text-right px-4 py-3">単価</th>
+              <th className="text-right px-4 py-3">使用レシピ</th>
+              <th className="px-4 py-3"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {ingredients.map(i => (
+              <tr key={i.id} className="border-b border-gray-800/50 hover:bg-gray-800/30">
+                <td className="px-4 py-3 font-medium">{i.name}</td>
+                <td className="px-4 py-3 text-gray-400">{i.category || '—'}</td>
+                <td className="px-4 py-3 text-right font-mono">¥{i.unit_price.toLocaleString()} / {i.unit}</td>
+                <td className="px-4 py-3 text-right text-gray-400">{i.recipe_count}件</td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center justify-end gap-2">
+                    <button onClick={() => showHistory(i)} title="単価履歴"><TrendingUp className="w-4 h-4 text-gray-500 hover:text-blue-400" /></button>
+                    <button onClick={() => openEdit(i)} title="編集"><Pencil className="w-4 h-4 text-gray-500 hover:text-orange-400" /></button>
+                    <button onClick={() => remove(i)} title="削除"><Trash2 className="w-4 h-4 text-gray-500 hover:text-red-400" /></button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+            {ingredients.length === 0 && (
+              <tr><td colSpan={5} className="px-4 py-12 text-center text-gray-500">食材が登録されていません</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* 編集モーダル */}
+      {editing && (
+        <Modal title={editing === 'new' ? '食材を追加' : '食材を編集'} onClose={() => setEditing(null)}>
+          <div className="space-y-3">
+            {[
+              { key: 'name', label: '食材名', type: 'text', required: true },
+              { key: 'unit', label: '単位（g / ml / 個 など）', type: 'text', required: true },
+              { key: 'unit_price', label: '単価（¥/単位）', type: 'number', required: true },
+            ].map(({ key, label, type, required }) => (
+              <div key={key}>
+                <label className="block text-xs text-gray-400 mb-1">{label}</label>
+                <input type={type} value={(form as any)[key]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} required={required}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500" />
+              </div>
+            ))}
+            <div>
+              <label className="block text-xs text-gray-400 mb-1">カテゴリ</label>
+              <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500">
+                <option value="">— 選択 —</option>
+                {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-400 mb-1">備考</label>
+              <input value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))}
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500" />
+            </div>
+            {error && <p className="text-red-400 text-xs">{error}</p>}
+            <div className="flex gap-2 pt-2">
+              <button onClick={() => setEditing(null)} className="flex-1 bg-gray-800 hover:bg-gray-700 text-sm py-2 rounded-lg">キャンセル</button>
+              <button onClick={save} disabled={loading} className="flex-1 bg-orange-500 hover:bg-orange-600 text-white text-sm py-2 rounded-lg disabled:opacity-50">
+                {loading ? '保存中...' : '保存'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* 単価履歴モーダル */}
+      {history && (
+        <Modal title={`${history.ing.name} — 単価履歴`} onClose={() => setHistory(null)}>
+          <div className="h-40">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={history.data.map(h => ({ date: h.recorded_at.slice(0, 10), price: h.unit_price }))}>
+                <XAxis dataKey="date" tick={{ fill: '#6b7280', fontSize: 10 }} />
+                <YAxis tick={{ fill: '#6b7280', fontSize: 10 }} />
+                <Tooltip contentStyle={{ background: '#1f2937', border: '1px solid #374151' }} />
+                <Line type="monotone" dataKey="price" stroke="#f97316" strokeWidth={2} dot={{ r: 3 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="mt-3 space-y-1 max-h-40 overflow-y-auto">
+            {[...history.data].reverse().map(h => (
+              <div key={h.id} className="flex justify-between text-xs text-gray-400">
+                <span>{h.recorded_at.slice(0, 10)}</span>
+                <span className="font-mono">¥{h.unit_price.toLocaleString()} / {history.ing.unit}</span>
+              </div>
+            ))}
+          </div>
+        </Modal>
+      )}
+    </div>
+  )
+}

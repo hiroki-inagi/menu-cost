@@ -1,0 +1,1281 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>飲食店原価計算App 設計書</title>
+  <style>
+    :root {
+      --primary: #e85d04;
+      --primary-dark: #c44b00;
+      --bg: #0f0f0f;
+      --surface: #1a1a1a;
+      --surface2: #252525;
+      --border: #333;
+      --text: #e8e8e8;
+      --text-muted: #888;
+      --green: #22c55e;
+      --blue: #3b82f6;
+      --yellow: #f59e0b;
+      --purple: #a855f7;
+      --red: #ef4444;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    /* ===== HEADER ===== */
+    .header {
+      background: linear-gradient(135deg, #1a0a00, #2d1200);
+      border-bottom: 2px solid var(--primary);
+      padding: 40px 60px;
+    }
+    .header-top { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; }
+    .logo { font-size: 32px; }
+    .app-name { font-size: 28px; font-weight: 700; color: var(--primary); }
+    .subtitle { color: var(--text-muted); font-size: 15px; margin-top: 4px; }
+    .meta { display: flex; gap: 24px; margin-top: 20px; flex-wrap: wrap; }
+    .meta-item { background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 8px; padding: 8px 16px; font-size: 13px; }
+    .meta-item span { color: var(--text-muted); margin-right: 6px; }
+
+    /* ===== LAYOUT ===== */
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 40px 80px; }
+    .section { margin-top: 60px; }
+    .section-title {
+      font-size: 20px; font-weight: 700; color: var(--primary);
+      border-left: 4px solid var(--primary);
+      padding-left: 12px; margin-bottom: 24px;
+    }
+    .section-num { color: var(--text-muted); font-size: 13px; margin-right: 8px; }
+
+    /* ===== CARDS ===== */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+    .card-title { font-size: 16px; font-weight: 600; margin-bottom: 12px; color: var(--text); }
+    .card-subtitle { font-size: 12px; color: var(--text-muted); margin-bottom: 16px; }
+
+    /* ===== GRID ===== */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+
+    /* ===== TECH STACK ===== */
+    .tech-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 16px; font-size: 14px;
+      margin: 4px;
+    }
+    .tech-badge .icon { font-size: 20px; }
+
+    /* ===== FEATURES ===== */
+    .feature-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .feature-tag {
+      display: inline-block;
+      font-size: 11px; font-weight: 600;
+      padding: 2px 8px; border-radius: 4px;
+      margin-bottom: 10px;
+    }
+    .tag-core { background: rgba(232,93,4,0.2); color: var(--primary); }
+    .tag-ext  { background: rgba(59,130,246,0.2); color: var(--blue); }
+    .tag-adv  { background: rgba(168,85,247,0.2); color: var(--purple); }
+    .feature-name { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+    .feature-desc { font-size: 13px; color: var(--text-muted); }
+    .feature-list { list-style: none; margin-top: 8px; }
+    .feature-list li { font-size: 12px; color: var(--text-muted); padding: 2px 0; }
+    .feature-list li::before { content: '・'; color: var(--primary); }
+
+    /* ===== DB TABLE ===== */
+    table {
+      width: 100%; border-collapse: collapse;
+      font-size: 13px;
+    }
+    thead { background: var(--surface2); }
+    th { padding: 10px 14px; text-align: left; color: var(--text-muted); font-weight: 600; border-bottom: 1px solid var(--border); }
+    td { padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+    .type-badge {
+      font-size: 11px; font-family: monospace;
+      background: var(--surface2); border-radius: 4px;
+      padding: 1px 6px; color: var(--blue);
+    }
+    .pk { color: var(--yellow); font-weight: 700; }
+    .fk { color: var(--purple); }
+    .nn { color: var(--green); font-size: 11px; }
+
+    /* ===== DB ER ===== */
+    .er-container {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 32px;
+      overflow-x: auto;
+    }
+    .er-tables { display: flex; gap: 32px; flex-wrap: wrap; align-items: flex-start; }
+    .er-table {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      min-width: 200px;
+      overflow: hidden;
+    }
+    .er-table-name {
+      background: var(--primary);
+      color: white; font-weight: 700; font-size: 13px;
+      padding: 8px 14px;
+    }
+    .er-field { padding: 6px 14px; font-size: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; gap: 8px; align-items: center; }
+    .er-field:last-child { border-bottom: none; }
+    .er-pk { color: var(--yellow); font-size: 10px; }
+    .er-fk-label { color: var(--purple); font-size: 10px; }
+    .er-field-name { color: var(--text); }
+    .er-field-type { color: var(--text-muted); font-size: 11px; margin-left: auto; }
+
+    /* ===== SCREENS ===== */
+    .screen-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .screen-header {
+      background: var(--surface2);
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      font-weight: 600; font-size: 15px;
+    }
+    .screen-body { padding: 20px; }
+    .screen-section { margin-bottom: 16px; }
+    .screen-section-title { font-size: 12px; color: var(--primary); font-weight: 600; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .screen-items { display: flex; flex-wrap: wrap; gap: 6px; }
+    .screen-item {
+      font-size: 12px; background: var(--surface2);
+      border: 1px solid var(--border); border-radius: 6px;
+      padding: 4px 10px; color: var(--text-muted);
+    }
+    .screen-item.highlight { border-color: var(--primary); color: var(--primary); }
+
+    /* ===== API ===== */
+    .api-group { margin-bottom: 24px; }
+    .api-group-title { font-size: 13px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+    .api-row {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 10px 14px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 6px;
+      font-size: 13px;
+    }
+    .method {
+      font-size: 11px; font-weight: 700; font-family: monospace;
+      padding: 2px 8px; border-radius: 4px; min-width: 52px;
+      text-align: center; flex-shrink: 0;
+    }
+    .GET    { background: rgba(34,197,94,0.15); color: var(--green); }
+    .POST   { background: rgba(59,130,246,0.15); color: var(--blue); }
+    .PUT    { background: rgba(245,158,11,0.15); color: var(--yellow); }
+    .DELETE { background: rgba(239,68,68,0.15); color: var(--red); }
+    .api-path { font-family: monospace; color: var(--text); }
+    .api-desc { color: var(--text-muted); font-size: 12px; margin-left: auto; }
+
+    /* ===== CALCULATION ===== */
+    .formula-card {
+      background: var(--surface2);
+      border: 1px solid var(--primary);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+    .formula { font-family: monospace; font-size: 15px; color: var(--yellow); margin: 8px 0; }
+    .formula-note { font-size: 12px; color: var(--text-muted); }
+
+    /* ===== FLOW ===== */
+    .flow { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+    .flow-step {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 8px 16px; font-size: 13px;
+    }
+    .flow-arrow { color: var(--primary); font-size: 18px; }
+
+    /* ===== KPIs ===== */
+    .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .kpi-card {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 16px; text-align: center;
+    }
+    .kpi-value { font-size: 24px; font-weight: 700; color: var(--primary); }
+    .kpi-label { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+    /* ===== TOC ===== */
+    .toc {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-top: 32px;
+    }
+    .toc-title { font-size: 14px; font-weight: 600; color: var(--text-muted); margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .toc-list { list-style: none; }
+    .toc-list li { padding: 4px 0; font-size: 14px; }
+    .toc-list a { color: var(--text-muted); text-decoration: none; }
+    .toc-list a:hover { color: var(--primary); }
+    .toc-num { color: var(--text-muted); margin-right: 8px; font-size: 12px; }
+
+    /* ===== MISC ===== */
+    .divider { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+    .note { background: rgba(232,93,4,0.08); border-left: 3px solid var(--primary); padding: 12px 16px; border-radius: 0 8px 8px 0; font-size: 13px; color: var(--text-muted); }
+    .badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 20px; }
+    .badge-green { background: rgba(34,197,94,0.15); color: var(--green); }
+    .badge-blue  { background: rgba(59,130,246,0.15); color: var(--blue); }
+    .badge-red   { background: rgba(239,68,68,0.15); color: var(--red); }
+
+    @media (max-width: 768px) {
+      .header { padding: 24px 20px; }
+      .container { padding: 0 16px 60px; }
+      .grid-2, .grid-3, .grid-4, .kpi-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ===== HEADER ===== -->
+<div class="header">
+  <div class="header-top">
+    <span class="logo">🍽️</span>
+    <div>
+      <div class="app-name">MenuCost — 飲食店原価計算App</div>
+      <div class="subtitle">食材管理・レシピ設計・売価提案・利益分析を一元管理するWebアプリケーション</div>
+    </div>
+  </div>
+  <div class="meta">
+    <div class="meta-item"><span>バージョン</span>v1.0.0</div>
+    <div class="meta-item"><span>作成日</span>2026-06-27</div>
+    <div class="meta-item"><span>ステータス</span>設計フェーズ</div>
+    <div class="meta-item"><span>参照</span>household-budget App 同一構成</div>
+  </div>
+  <div class="toc">
+    <div class="toc-title">目次</div>
+    <ul class="toc-list">
+      <li><span class="toc-num">1.</span><a href="#overview">システム概要</a></li>
+      <li><span class="toc-num">2.</span><a href="#tech">技術スタック</a></li>
+      <li><span class="toc-num">3.</span><a href="#features">機能一覧</a></li>
+      <li><span class="toc-num">4.</span><a href="#calculation">原価計算ロジック</a></li>
+      <li><span class="toc-num">5.</span><a href="#db">データベース設計</a></li>
+      <li><span class="toc-num">6.</span><a href="#api">API設計</a></li>
+      <li><span class="toc-num">7.</span><a href="#screens">画面設計</a></li>
+      <li><span class="toc-num">8.</span><a href="#dir">ディレクトリ構成</a></li>
+      <li><span class="toc-num">9.</span><a href="#sales-weather">売上×天気・時期分析機能</a></li>
+    </ul>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- ===== 1. システム概要 ===== -->
+  <div class="section" id="overview">
+    <div class="section-title"><span class="section-num">1.</span>システム概要</div>
+    <div class="card">
+      <div class="card-title">コンセプト</div>
+      <p style="font-size:14px;color:var(--text-muted);line-height:1.8;">
+        飲食店の運営において「原価率の把握」は利益管理の根幹です。本Appは<br>
+        ① 食材マスタの登録（単価・単位） → ② レシピへの食材紐付け → ③ 自動原価計算 → ④ 目標原価率に基づく売価提案<br>
+        …の流れをワンストップで実現し、オーナー・シェフ両方が使いやすいUIを提供します。
+      </p>
+    </div>
+    <div class="kpi-grid" style="margin-top:16px;">
+      <div class="kpi-card"><div class="kpi-value">3</div><div class="kpi-label">コアモジュール<br>食材 / レシピ / 分析</div></div>
+      <div class="kpi-card"><div class="kpi-value">30%</div><div class="kpi-label">目標原価率<br>（業界標準・変更可）</div></div>
+      <div class="kpi-card"><div class="kpi-value">リアルタイム</div><div class="kpi-label">食材単価変更時<br>全レシピ自動再計算</div></div>
+      <div class="kpi-card"><div class="kpi-value">ABC</div><div class="kpi-label">メニュー分析<br>売上貢献度ランク</div></div>
+    </div>
+  </div>
+
+  <!-- ===== 2. 技術スタック ===== -->
+  <div class="section" id="tech">
+    <div class="section-title"><span class="section-num">2.</span>技術スタック</div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">バックエンド</div>
+        <div>
+          <span class="tech-badge"><span class="icon">⚡</span>FastAPI (Python 3.11)</span>
+          <span class="tech-badge"><span class="icon">🗄️</span>SQLAlchemy 2.x (ORM)</span>
+          <span class="tech-badge"><span class="icon">🐘</span>PostgreSQL 15</span>
+          <span class="tech-badge"><span class="icon">🔄</span>Alembic (マイグレーション)</span>
+          <span class="tech-badge"><span class="icon">🔐</span>JWT 認証 (python-jose)</span>
+          <span class="tech-badge"><span class="icon">✅</span>Pydantic v2 (バリデーション)</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">フロントエンド</div>
+        <div>
+          <span class="tech-badge"><span class="icon">⚛️</span>React 18 + TypeScript</span>
+          <span class="tech-badge"><span class="icon">🎨</span>Tailwind CSS</span>
+          <span class="tech-badge"><span class="icon">📦</span>Vite</span>
+          <span class="tech-badge"><span class="icon">🔗</span>React Router v6</span>
+          <span class="tech-badge"><span class="icon">📡</span>Axios (API通信)</span>
+          <span class="tech-badge"><span class="icon">📊</span>Recharts (グラフ)</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">インフラ / デプロイ</div>
+        <div>
+          <span class="tech-badge"><span class="icon">🚀</span>Render (バックエンド)</span>
+          <span class="tech-badge"><span class="icon">🌐</span>Render Static Site (フロント)</span>
+          <span class="tech-badge"><span class="icon">🐙</span>GitHub (CI/CD)</span>
+          <span class="tech-badge"><span class="icon">🔒</span>環境変数 (.env)</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">household-budget Appからの変更点</div>
+        <div class="note" style="margin-top:8px;">
+          同一の技術スタック・ディレクトリ構成・デプロイ方式を継承。<br>
+          主な追加: Recharts（原価グラフ）、ReportLab（PDF出力）
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 3. 機能一覧 ===== -->
+  <div class="section" id="features">
+    <div class="section-title"><span class="section-num">3.</span>機能一覧</div>
+    <div style="margin-bottom:12px; font-size:13px; color:var(--text-muted);">
+      <span class="feature-tag tag-core">コア</span> 基本機能
+      <span class="feature-tag tag-ext">拡張</span> 便利機能
+      <span class="feature-tag tag-adv">高度</span> 分析・エクスポート
+    </div>
+    <div class="grid-3">
+
+      <div class="feature-card">
+        <div class="feature-tag tag-core">コア</div>
+        <div class="feature-name">🥦 食材マスタ管理</div>
+        <div class="feature-desc">食材の登録・編集・削除と単価管理</div>
+        <ul class="feature-list">
+          <li>食材名・単位（g/ml/個）登録</li>
+          <li>仕入単価・仕入先の記録</li>
+          <li>カテゴリ分類（肉類・野菜等）</li>
+          <li>単価更新時に全レシピへ反映</li>
+          <li>在庫アラート設定（任意）</li>
+        </ul>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-tag tag-core">コア</div>
+        <div class="feature-name">📋 レシピ管理</div>
+        <div class="feature-desc">料理ごとの食材・数量を登録</div>
+        <ul class="feature-list">
+          <li>料理名・カテゴリ（前菜・メイン等）</li>
+          <li>食材と使用量（g/ml/個）の紐付け</li>
+          <li>複数人分レシピ対応（1人前換算）</li>
+          <li>写真URLの登録（任意）</li>
+          <li>ロス率の設定（歩留まり）</li>
+        </ul>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-tag tag-core">コア</div>
+        <div class="feature-name">💰 売価提案・原価計算</div>
+        <div class="feature-desc">目標原価率から売価を自動算出</div>
+        <ul class="feature-list">
+          <li>食材費の自動合計</li>
+          <li>目標原価率から逆算した売価提案</li>
+          <li>消費税対応（税込/税抜切替）</li>
+          <li>端数処理設定（50円/100円単位）</li>
+          <li>現行売価との差額表示</li>
+        </ul>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-tag tag-ext">拡張</div>
+        <div class="feature-name">⚙️ 原価率設定</div>
+        <div class="feature-desc">店舗ごとの目標値をカスタマイズ</div>
+        <ul class="feature-list">
+          <li>全体デフォルト原価率設定</li>
+          <li>カテゴリ別の目標原価率</li>
+          <li>FL比率（Food + Labor）表示</li>
+          <li>人件費率の別途入力・参照</li>
+        </ul>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-tag tag-ext">拡張</div>
+        <div class="feature-name">📦 仕入先管理</div>
+        <div class="feature-desc">仕入先ごとの単価比較</div>
+        <ul class="feature-list">
+          <li>仕入先（業者名・連絡先）登録</li>
+          <li>食材ごとの複数仕入先対応</li>
+          <li>最安値仕入先を自動ハイライト</li>
+          <li>単価履歴グラフ</li>
+        </ul>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-tag tag-ext">拡張</div>
+        <div class="feature-name">🏷️ メニュー価格管理</div>
+        <div class="feature-desc">実際の販売価格と原価率を一覧管理</div>
+        <ul class="feature-list">
+          <li>現行売価の登録・編集</li>
+          <li>原価率の視覚的ステータス表示</li>
+          <li>推奨売価との乖離アラート</li>
+          <li>価格変更履歴</li>
+        </ul>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-tag tag-adv">高度</div>
+        <div class="feature-name">📊 ダッシュボード</div>
+        <div class="feature-desc">店舗全体の原価状況をひと目で把握</div>
+        <ul class="feature-list">
+          <li>全メニューの平均原価率</li>
+          <li>原価率ワースト/ベストランキング</li>
+          <li>カテゴリ別原価率比較棒グラフ</li>
+          <li>月別食材費トレンド折れ線</li>
+        </ul>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-tag tag-adv">高度</div>
+        <div class="feature-name">🔤 ABCメニュー分析</div>
+        <div class="feature-desc">売上数量×利益率でメニューを分類</div>
+        <ul class="feature-list">
+          <li>販売数量の入力（任意）</li>
+          <li>A（高利益×高回転）を自動判定</li>
+          <li>改善優先メニューの提示</li>
+          <li>マトリクス図で視覚化</li>
+        </ul>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-tag tag-adv">高度</div>
+        <div class="feature-name">📄 レポート出力</div>
+        <div class="feature-desc">CSV / PDF 形式でデータ出力</div>
+        <ul class="feature-list">
+          <li>レシピ原価一覧CSV</li>
+          <li>食材マスタCSV</li>
+          <li>メニュー原価レポートPDF</li>
+          <li>月次サマリーPDF</li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ===== 4. 原価計算ロジック ===== -->
+  <div class="section" id="calculation">
+    <div class="section-title"><span class="section-num">4.</span>原価計算ロジック</div>
+
+    <div class="flow">
+      <div class="flow-step">食材単価登録<br><small style="color:var(--text-muted);">¥/g, ¥/個</small></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">レシピ使用量入力<br><small style="color:var(--text-muted);">200g, 2個…</small></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">食材費合計<br><small style="color:var(--text-muted);">自動計算</small></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">ロス率適用<br><small style="color:var(--text-muted);">歩留まり補正</small></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">売価提案<br><small style="color:var(--text-muted);">原価率で逆算</small></div>
+    </div>
+
+    <div class="formula-card">
+      <div class="card-title">① 食材費計算</div>
+      <div class="formula">食材費 = Σ ( 食材単価[¥/unit] × 使用量[unit] × (1 / 歩留まり率) )</div>
+      <div class="formula-note">歩留まり率: 廃棄・ロスを除いた可食割合（例: 80% → 1/0.8倍に補正）</div>
+    </div>
+
+    <div class="formula-card">
+      <div class="card-title">② 推奨売価計算</div>
+      <div class="formula">推奨売価（税抜）= 食材費 ÷ 目標原価率</div>
+      <div class="formula">推奨売価（税込）= 推奨売価（税抜）× 1.1</div>
+      <div class="formula-note">端数処理後の価格を表示（50円単位 or 100円単位、切り上げ）</div>
+    </div>
+
+    <div class="formula-card">
+      <div class="card-title">③ 実際の原価率（現行売価から逆算）</div>
+      <div class="formula">実際の原価率 = 食材費 ÷ 現行売価（税抜）× 100 [%]</div>
+      <div class="formula-note">
+        🟢 〜25%: 利益大（価格見直し検討）　🟡 25〜35%: 適正範囲　🔴 35%〜: 改善が必要
+      </div>
+    </div>
+
+    <div class="formula-card">
+      <div class="card-title">④ FL比率（参考値）</div>
+      <div class="formula">FL比率 = 食材費率 + 人件費率</div>
+      <div class="formula-note">業界目安: FL比率 55〜60%以下が経営健全の目安</div>
+    </div>
+  </div>
+
+  <!-- ===== 5. DB設計 ===== -->
+  <div class="section" id="db">
+    <div class="section-title"><span class="section-num">5.</span>データベース設計</div>
+
+    <!-- ER図 -->
+    <div class="er-container" style="margin-bottom:24px;">
+      <div style="font-size:13px;color:var(--text-muted);margin-bottom:20px;font-weight:600;">ERダイアグラム（主要テーブル）</div>
+      <div class="er-tables">
+        <div class="er-table">
+          <div class="er-table-name">users</div>
+          <div class="er-field"><span class="er-pk">PK</span><span class="er-field-name">id</span><span class="er-field-type">UUID</span></div>
+          <div class="er-field"><span class="er-field-name">email</span><span class="er-field-type">VARCHAR</span></div>
+          <div class="er-field"><span class="er-field-name">hashed_password</span><span class="er-field-type">VARCHAR</span></div>
+          <div class="er-field"><span class="er-field-name">store_id</span><span class="er-field-type">UUID FK</span></div>
+          <div class="er-field"><span class="er-field-name">role</span><span class="er-field-type">ENUM</span></div>
+        </div>
+        <div class="er-table">
+          <div class="er-table-name">stores</div>
+          <div class="er-field"><span class="er-pk">PK</span><span class="er-field-name">id</span><span class="er-field-type">UUID</span></div>
+          <div class="er-field"><span class="er-field-name">name</span><span class="er-field-type">VARCHAR</span></div>
+          <div class="er-field"><span class="er-field-name">default_cost_rate</span><span class="er-field-type">NUMERIC</span></div>
+          <div class="er-field"><span class="er-field-name">tax_rate</span><span class="er-field-type">NUMERIC</span></div>
+          <div class="er-field"><span class="er-field-name">rounding_unit</span><span class="er-field-type">INTEGER</span></div>
+        </div>
+        <div class="er-table">
+          <div class="er-table-name">ingredients</div>
+          <div class="er-field"><span class="er-pk">PK</span><span class="er-field-name">id</span><span class="er-field-type">UUID</span></div>
+          <div class="er-field"><span class="er-fk-label">FK</span><span class="er-field-name">store_id</span><span class="er-field-type">UUID</span></div>
+          <div class="er-field"><span class="er-field-name">name</span><span class="er-field-type">VARCHAR</span></div>
+          <div class="er-field"><span class="er-field-name">unit</span><span class="er-field-type">VARCHAR</span></div>
+          <div class="er-field"><span class="er-field-name">unit_price</span><span class="er-field-type">NUMERIC</span></div>
+          <div class="er-field"><span class="er-field-name">category</span><span class="er-field-type">VARCHAR</span></div>
+          <div class="er-field"><span class="er-fk-label">FK</span><span class="er-field-name">supplier_id</span><span class="er-field-type">UUID</span></div>
+        </div>
+        <div class="er-table">
+          <div class="er-table-name">recipes</div>
+          <div class="er-field"><span class="er-pk">PK</span><span class="er-field-name">id</span><span class="er-field-type">UUID</span></div>
+          <div class="er-field"><span class="er-fk-label">FK</span><span class="er-field-name">store_id</span><span class="er-field-type">UUID</span></div>
+          <div class="er-field"><span class="er-field-name">name</span><span class="er-field-type">VARCHAR</span></div>
+          <div class="er-field"><span class="er-field-name">category</span><span class="er-field-type">VARCHAR</span></div>
+          <div class="er-field"><span class="er-field-name">target_cost_rate</span><span class="er-field-type">NUMERIC</span></div>
+          <div class="er-field"><span class="er-field-name">selling_price</span><span class="er-field-type">NUMERIC</span></div>
+          <div class="er-field"><span class="er-field-name">servings</span><span class="er-field-type">INTEGER</span></div>
+          <div class="er-field"><span class="er-field-name">image_url</span><span class="er-field-type">VARCHAR?</span></div>
+        </div>
+        <div class="er-table">
+          <div class="er-table-name">recipe_ingredients</div>
+          <div class="er-field"><span class="er-pk">PK</span><span class="er-field-name">id</span><span class="er-field-type">UUID</span></div>
+          <div class="er-field"><span class="er-fk-label">FK</span><span class="er-field-name">recipe_id</span><span class="er-field-type">UUID</span></div>
+          <div class="er-field"><span class="er-fk-label">FK</span><span class="er-field-name">ingredient_id</span><span class="er-field-type">UUID</span></div>
+          <div class="er-field"><span class="er-field-name">quantity</span><span class="er-field-type">NUMERIC</span></div>
+          <div class="er-field"><span class="er-field-name">yield_rate</span><span class="er-field-type">NUMERIC</span></div>
+        </div>
+        <div class="er-table">
+          <div class="er-table-name">suppliers</div>
+          <div class="er-field"><span class="er-pk">PK</span><span class="er-field-name">id</span><span class="er-field-type">UUID</span></div>
+          <div class="er-field"><span class="er-fk-label">FK</span><span class="er-field-name">store_id</span><span class="er-field-type">UUID</span></div>
+          <div class="er-field"><span class="er-field-name">name</span><span class="er-field-type">VARCHAR</span></div>
+          <div class="er-field"><span class="er-field-name">contact</span><span class="er-field-type">VARCHAR?</span></div>
+          <div class="er-field"><span class="er-field-name">note</span><span class="er-field-type">TEXT?</span></div>
+        </div>
+        <div class="er-table">
+          <div class="er-table-name">price_history</div>
+          <div class="er-field"><span class="er-pk">PK</span><span class="er-field-name">id</span><span class="er-field-type">UUID</span></div>
+          <div class="er-field"><span class="er-fk-label">FK</span><span class="er-field-name">ingredient_id</span><span class="er-field-type">UUID</span></div>
+          <div class="er-field"><span class="er-field-name">unit_price</span><span class="er-field-type">NUMERIC</span></div>
+          <div class="er-field"><span class="er-field-name">recorded_at</span><span class="er-field-type">TIMESTAMP</span></div>
+        </div>
+        <div class="er-table">
+          <div class="er-table-name">menu_sales</div>
+          <div class="er-field"><span class="er-pk">PK</span><span class="er-field-name">id</span><span class="er-field-type">UUID</span></div>
+          <div class="er-field"><span class="er-fk-label">FK</span><span class="er-field-name">recipe_id</span><span class="er-field-type">UUID</span></div>
+          <div class="er-field"><span class="er-field-name">month</span><span class="er-field-type">DATE</span></div>
+          <div class="er-field"><span class="er-field-name">quantity_sold</span><span class="er-field-type">INTEGER</span></div>
+        </div>
+      </div>
+      <div style="margin-top:20px;font-size:12px;color:var(--text-muted);">
+        stores → users (1:N)　|　stores → ingredients (1:N)　|　stores → recipes (1:N)<br>
+        recipes ← recipe_ingredients → ingredients (N:M中間テーブル)　|　ingredients → suppliers (N:1)<br>
+        ingredients → price_history (1:N)　|　recipes → menu_sales (1:N)
+      </div>
+    </div>
+
+    <!-- テーブル詳細 -->
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">ingredients（食材マスタ）</div>
+        <table>
+          <thead><tr><th>カラム</th><th>型</th><th>説明</th></tr></thead>
+          <tbody>
+            <tr><td class="pk">id</td><td><span class="type-badge">UUID</span></td><td>主キー</td></tr>
+            <tr><td class="fk">store_id</td><td><span class="type-badge">UUID</span></td><td>店舗FK（必須）</td></tr>
+            <tr><td>name</td><td><span class="type-badge">VARCHAR</span></td><td>食材名</td></tr>
+            <tr><td>unit</td><td><span class="type-badge">VARCHAR</span></td><td>単位（g/ml/個/本等）</td></tr>
+            <tr><td>unit_price</td><td><span class="type-badge">NUMERIC</span></td><td>単価（¥/unit）</td></tr>
+            <tr><td>category</td><td><span class="type-badge">VARCHAR</span></td><td>肉類/野菜/調味料…</td></tr>
+            <tr><td class="fk">supplier_id</td><td><span class="type-badge">UUID?</span></td><td>主要仕入先FK</td></tr>
+            <tr><td>note</td><td><span class="type-badge">TEXT?</span></td><td>備考</td></tr>
+            <tr><td>created_at</td><td><span class="type-badge">TIMESTAMP</span></td><td>登録日時</td></tr>
+            <tr><td>updated_at</td><td><span class="type-badge">TIMESTAMP</span></td><td>更新日時</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-title">recipes（レシピ）</div>
+        <table>
+          <thead><tr><th>カラム</th><th>型</th><th>説明</th></tr></thead>
+          <tbody>
+            <tr><td class="pk">id</td><td><span class="type-badge">UUID</span></td><td>主キー</td></tr>
+            <tr><td class="fk">store_id</td><td><span class="type-badge">UUID</span></td><td>店舗FK</td></tr>
+            <tr><td>name</td><td><span class="type-badge">VARCHAR</span></td><td>料理名</td></tr>
+            <tr><td>category</td><td><span class="type-badge">VARCHAR</span></td><td>前菜/メイン/ドリンク…</td></tr>
+            <tr><td>target_cost_rate</td><td><span class="type-badge">NUMERIC?</span></td><td>個別目標原価率（NULL=店舗デフォルト）</td></tr>
+            <tr><td>selling_price</td><td><span class="type-badge">NUMERIC?</span></td><td>現行売価（税抜）</td></tr>
+            <tr><td>servings</td><td><span class="type-badge">INTEGER</span></td><td>レシピの人数（デフォルト1）</td></tr>
+            <tr><td>image_url</td><td><span class="type-badge">VARCHAR?</span></td><td>写真URL</td></tr>
+            <tr><td>is_active</td><td><span class="type-badge">BOOLEAN</span></td><td>メニュー提供中フラグ</td></tr>
+            <tr><td>created_at</td><td><span class="type-badge">TIMESTAMP</span></td><td>登録日時</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-title">recipe_ingredients（食材使用量・中間テーブル）</div>
+        <table>
+          <thead><tr><th>カラム</th><th>型</th><th>説明</th></tr></thead>
+          <tbody>
+            <tr><td class="pk">id</td><td><span class="type-badge">UUID</span></td><td>主キー</td></tr>
+            <tr><td class="fk">recipe_id</td><td><span class="type-badge">UUID</span></td><td>レシピFK</td></tr>
+            <tr><td class="fk">ingredient_id</td><td><span class="type-badge">UUID</span></td><td>食材FK</td></tr>
+            <tr><td>quantity</td><td><span class="type-badge">NUMERIC</span></td><td>使用量（unitで解釈）</td></tr>
+            <tr><td>yield_rate</td><td><span class="type-badge">NUMERIC</span></td><td>歩留まり率 0.0〜1.0（デフォルト1.0）</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-title">stores（店舗設定）</div>
+        <table>
+          <thead><tr><th>カラム</th><th>型</th><th>説明</th></tr></thead>
+          <tbody>
+            <tr><td class="pk">id</td><td><span class="type-badge">UUID</span></td><td>主キー</td></tr>
+            <tr><td>name</td><td><span class="type-badge">VARCHAR</span></td><td>店舗名</td></tr>
+            <tr><td>default_cost_rate</td><td><span class="type-badge">NUMERIC</span></td><td>デフォルト目標原価率（例: 0.30）</td></tr>
+            <tr><td>tax_rate</td><td><span class="type-badge">NUMERIC</span></td><td>消費税率（例: 0.10）</td></tr>
+            <tr><td>rounding_unit</td><td><span class="type-badge">INTEGER</span></td><td>端数処理単位（50 or 100 ¥）</td></tr>
+            <tr><td>labor_cost_rate</td><td><span class="type-badge">NUMERIC?</span></td><td>人件費率（FL比率算出用）</td></tr>
+            <tr><td>created_at</td><td><span class="type-badge">TIMESTAMP</span></td><td>登録日時</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 6. API設計 ===== -->
+  <div class="section" id="api">
+    <div class="section-title"><span class="section-num">6.</span>API設計</div>
+    <div class="note" style="margin-bottom:20px;">Base URL: <code>/api/v1</code> | 認証: Bearer JWT | prefix: 全エンドポイントに適用</div>
+
+    <div class="grid-2">
+      <div>
+        <div class="api-group">
+          <div class="api-group-title">認証</div>
+          <div class="api-row"><span class="method POST">POST</span><span class="api-path">/auth/register</span><span class="api-desc">ユーザー登録</span></div>
+          <div class="api-row"><span class="method POST">POST</span><span class="api-path">/auth/login</span><span class="api-desc">ログイン・JWT取得</span></div>
+          <div class="api-row"><span class="method GET">GET</span><span class="api-path">/auth/me</span><span class="api-desc">ログインユーザー情報</span></div>
+        </div>
+        <div class="api-group">
+          <div class="api-group-title">食材 /ingredients</div>
+          <div class="api-row"><span class="method GET">GET</span><span class="api-path">/ingredients</span><span class="api-desc">一覧取得（カテゴリ/名前フィルタ）</span></div>
+          <div class="api-row"><span class="method POST">POST</span><span class="api-path">/ingredients</span><span class="api-desc">新規登録</span></div>
+          <div class="api-row"><span class="method GET">GET</span><span class="api-path">/ingredients/{id}</span><span class="api-desc">詳細取得</span></div>
+          <div class="api-row"><span class="method PUT">PUT</span><span class="api-path">/ingredients/{id}</span><span class="api-desc">更新（単価変更→履歴記録）</span></div>
+          <div class="api-row"><span class="method DELETE">DELETE</span><span class="api-path">/ingredients/{id}</span><span class="api-desc">削除（レシピ使用中はエラー）</span></div>
+          <div class="api-row"><span class="method GET">GET</span><span class="api-path">/ingredients/{id}/price-history</span><span class="api-desc">単価履歴</span></div>
+        </div>
+        <div class="api-group">
+          <div class="api-group-title">仕入先 /suppliers</div>
+          <div class="api-row"><span class="method GET">GET</span><span class="api-path">/suppliers</span><span class="api-desc">一覧</span></div>
+          <div class="api-row"><span class="method POST">POST</span><span class="api-path">/suppliers</span><span class="api-desc">登録</span></div>
+          <div class="api-row"><span class="method PUT">PUT</span><span class="api-path">/suppliers/{id}</span><span class="api-desc">更新</span></div>
+          <div class="api-row"><span class="method DELETE">DELETE</span><span class="api-path">/suppliers/{id}</span><span class="api-desc">削除</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="api-group">
+          <div class="api-group-title">レシピ /recipes</div>
+          <div class="api-row"><span class="method GET">GET</span><span class="api-path">/recipes</span><span class="api-desc">一覧（原価計算済み）</span></div>
+          <div class="api-row"><span class="method POST">POST</span><span class="api-path">/recipes</span><span class="api-desc">新規登録（食材同時指定可）</span></div>
+          <div class="api-row"><span class="method GET">GET</span><span class="api-path">/recipes/{id}</span><span class="api-desc">詳細（原価・売価提案含む）</span></div>
+          <div class="api-row"><span class="method PUT">PUT</span><span class="api-path">/recipes/{id}</span><span class="api-desc">更新</span></div>
+          <div class="api-row"><span class="method DELETE">DELETE</span><span class="api-path">/recipes/{id}</span><span class="api-desc">削除</span></div>
+          <div class="api-row"><span class="method GET">GET</span><span class="api-path">/recipes/{id}/calculate</span><span class="api-desc">原価・推奨売価の計算結果</span></div>
+          <div class="api-row"><span class="method POST">POST</span><span class="api-path">/recipes/{id}/ingredients</span><span class="api-desc">食材追加</span></div>
+          <div class="api-row"><span class="method DELETE">DELETE</span><span class="api-path">/recipes/{id}/ingredients/{ing_id}</span><span class="api-desc">食材削除</span></div>
+        </div>
+        <div class="api-group">
+          <div class="api-group-title">ダッシュボード / 分析</div>
+          <div class="api-row"><span class="method GET">GET</span><span class="api-path">/dashboard/summary</span><span class="api-desc">全体サマリー（平均原価率など）</span></div>
+          <div class="api-row"><span class="method GET">GET</span><span class="api-path">/dashboard/cost-ranking</span><span class="api-desc">原価率ランキング</span></div>
+          <div class="api-row"><span class="method GET">GET</span><span class="api-path">/dashboard/category-breakdown</span><span class="api-desc">カテゴリ別原価分析</span></div>
+          <div class="api-row"><span class="method GET">GET</span><span class="api-path">/dashboard/abc-analysis</span><span class="api-desc">ABCメニュー分析</span></div>
+        </div>
+        <div class="api-group">
+          <div class="api-group-title">店舗設定 / エクスポート</div>
+          <div class="api-row"><span class="method GET">GET</span><span class="api-path">/store/settings</span><span class="api-desc">設定取得</span></div>
+          <div class="api-row"><span class="method PUT">PUT</span><span class="api-path">/store/settings</span><span class="api-desc">設定更新（原価率・税率等）</span></div>
+          <div class="api-row"><span class="method GET">GET</span><span class="api-path">/export/ingredients.csv</span><span class="api-desc">食材マスタCSV</span></div>
+          <div class="api-row"><span class="method GET">GET</span><span class="api-path">/export/recipes.csv</span><span class="api-desc">レシピ原価一覧CSV</span></div>
+          <div class="api-row"><span class="method GET">GET</span><span class="api-path">/export/report.pdf</span><span class="api-desc">原価レポートPDF</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 7. 画面設計 ===== -->
+  <div class="section" id="screens">
+    <div class="section-title"><span class="section-num">7.</span>画面設計</div>
+    <div class="grid-2">
+
+      <div class="screen-card">
+        <div class="screen-header">🏠 ダッシュボード <code style="font-size:11px;color:var(--text-muted)">/dashboard</code></div>
+        <div class="screen-body">
+          <div class="screen-section">
+            <div class="screen-section-title">KPIカード（上部）</div>
+            <div class="screen-items">
+              <span class="screen-item highlight">全体平均原価率</span>
+              <span class="screen-item highlight">登録メニュー数</span>
+              <span class="screen-item highlight">要改善メニュー数</span>
+              <span class="screen-item highlight">食材登録数</span>
+            </div>
+          </div>
+          <div class="screen-section">
+            <div class="screen-section-title">グラフ</div>
+            <div class="screen-items">
+              <span class="screen-item">カテゴリ別原価率 棒グラフ</span>
+              <span class="screen-item">原価率分布 ドーナツ</span>
+              <span class="screen-item">食材費トレンド 折れ線</span>
+            </div>
+          </div>
+          <div class="screen-section">
+            <div class="screen-section-title">リスト</div>
+            <div class="screen-items">
+              <span class="screen-item">原価率ワーストTop5</span>
+              <span class="screen-item">最近更新した食材</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="screen-card">
+        <div class="screen-header">🥦 食材管理 <code style="font-size:11px;color:var(--text-muted)">/ingredients</code></div>
+        <div class="screen-body">
+          <div class="screen-section">
+            <div class="screen-section-title">操作</div>
+            <div class="screen-items">
+              <span class="screen-item highlight">＋ 新規食材登録</span>
+              <span class="screen-item">カテゴリフィルタ</span>
+              <span class="screen-item">名前検索</span>
+              <span class="screen-item">CSV出力</span>
+            </div>
+          </div>
+          <div class="screen-section">
+            <div class="screen-section-title">テーブル列</div>
+            <div class="screen-items">
+              <span class="screen-item">食材名</span>
+              <span class="screen-item">カテゴリ</span>
+              <span class="screen-item">単位</span>
+              <span class="screen-item">単価（¥/unit）</span>
+              <span class="screen-item">仕入先</span>
+              <span class="screen-item">使用レシピ数</span>
+              <span class="screen-item">操作（編集/削除）</span>
+            </div>
+          </div>
+          <div class="screen-section">
+            <div class="screen-section-title">食材詳細モーダル</div>
+            <div class="screen-items">
+              <span class="screen-item">単価変更フォーム</span>
+              <span class="screen-item">単価履歴グラフ</span>
+              <span class="screen-item">使用中レシピ一覧</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="screen-card">
+        <div class="screen-header">📋 レシピ管理 <code style="font-size:11px;color:var(--text-muted)">/recipes</code></div>
+        <div class="screen-body">
+          <div class="screen-section">
+            <div class="screen-section-title">レシピカード一覧</div>
+            <div class="screen-items">
+              <span class="screen-item">料理名 / カテゴリ</span>
+              <span class="screen-item highlight">食材費 ¥XXX</span>
+              <span class="screen-item highlight">推奨売価 ¥XXX</span>
+              <span class="screen-item">原価率バッジ（🟢🟡🔴）</span>
+              <span class="screen-item">現行売価との比較</span>
+            </div>
+          </div>
+          <div class="screen-section">
+            <div class="screen-section-title">レシピ詳細画面</div>
+            <div class="screen-items">
+              <span class="screen-item">食材リスト + 使用量</span>
+              <span class="screen-item">歩留まり率入力</span>
+              <span class="screen-item highlight">原価計算内訳テーブル</span>
+              <span class="screen-item highlight">売価シミュレーター</span>
+              <span class="screen-item">目標原価率スライダー</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="screen-card">
+        <div class="screen-header">📊 分析 <code style="font-size:11px;color:var(--text-muted)">/analysis</code></div>
+        <div class="screen-body">
+          <div class="screen-section">
+            <div class="screen-section-title">ABCメニュー分析</div>
+            <div class="screen-items">
+              <span class="screen-item highlight">販売数量 × 利益率 マトリクス</span>
+              <span class="screen-item">Aランク（スター）一覧</span>
+              <span class="screen-item">Cランク（要改善）一覧</span>
+              <span class="screen-item">月次販売数入力モーダル</span>
+            </div>
+          </div>
+          <div class="screen-section">
+            <div class="screen-section-title">原価率シミュレーター</div>
+            <div class="screen-items">
+              <span class="screen-item">食材単価を仮変更してシミュレーション</span>
+              <span class="screen-item">影響を受けるレシピ一覧</span>
+            </div>
+          </div>
+          <div class="screen-section">
+            <div class="screen-section-title">エクスポート</div>
+            <div class="screen-items">
+              <span class="screen-item">CSV / PDF ダウンロード</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="screen-card">
+        <div class="screen-header">📦 仕入先管理 <code style="font-size:11px;color:var(--text-muted)">/suppliers</code></div>
+        <div class="screen-body">
+          <div class="screen-section">
+            <div class="screen-section-title">テーブル列</div>
+            <div class="screen-items">
+              <span class="screen-item">仕入先名</span>
+              <span class="screen-item">連絡先</span>
+              <span class="screen-item">担当食材数</span>
+              <span class="screen-item">備考</span>
+              <span class="screen-item">操作</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="screen-card">
+        <div class="screen-header">⚙️ 設定 <code style="font-size:11px;color:var(--text-muted)">/settings</code></div>
+        <div class="screen-body">
+          <div class="screen-section">
+            <div class="screen-section-title">店舗設定</div>
+            <div class="screen-items">
+              <span class="screen-item highlight">デフォルト目標原価率（%）</span>
+              <span class="screen-item">消費税率（%）</span>
+              <span class="screen-item">端数処理単位（円）</span>
+              <span class="screen-item">人件費率（FL比率用）</span>
+            </div>
+          </div>
+          <div class="screen-section">
+            <div class="screen-section-title">カテゴリ別目標原価率</div>
+            <div class="screen-items">
+              <span class="screen-item">前菜 / メイン / ドリンク / デザート</span>
+            </div>
+          </div>
+          <div class="screen-section">
+            <div class="screen-section-title">ユーザー管理</div>
+            <div class="screen-items">
+              <span class="screen-item">スタッフ招待（メール）</span>
+              <span class="screen-item">ロール設定（owner/staff）</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ===== 8. ディレクトリ構成 ===== -->
+  <div class="section" id="dir">
+    <div class="section-title"><span class="section-num">8.</span>ディレクトリ構成</div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">バックエンド (FastAPI)</div>
+        <pre style="font-size:12px;line-height:1.8;color:var(--text-muted);overflow-x:auto;">
+backend/
+├── app/
+│   ├── main.py              # FastAPI アプリ初期化
+│   ├── database.py          # DB接続・セッション
+│   ├── models/
+│   │   ├── store.py         # stores テーブル
+│   │   ├── user.py          # users テーブル
+│   │   ├── ingredient.py    # ingredients テーブル
+│   │   ├── recipe.py        # recipes テーブル
+│   │   ├── recipe_ingredient.py
+│   │   ├── supplier.py      # suppliers テーブル
+│   │   ├── price_history.py
+│   │   └── menu_sales.py
+│   ├── schemas/             # Pydantic スキーマ
+│   │   ├── ingredient.py
+│   │   ├── recipe.py
+│   │   ├── supplier.py
+│   │   └── dashboard.py
+│   ├── routers/
+│   │   ├── auth.py
+│   │   ├── ingredients.py
+│   │   ├── recipes.py
+│   │   ├── suppliers.py
+│   │   ├── dashboard.py
+│   │   ├── store.py
+│   │   └── export.py
+│   ├── services/
+│   │   └── cost_calculator.py  # 原価計算ロジック
+│   └── auth/
+│       └── jwt.py           # JWT 生成・検証
+├── alembic/                 # マイグレーション
+├── requirements.txt
+└── render.yaml              # Render デプロイ設定</pre>
+      </div>
+      <div class="card">
+        <div class="card-title">フロントエンド (React + TypeScript)</div>
+        <pre style="font-size:12px;line-height:1.8;color:var(--text-muted);overflow-x:auto;">
+frontend/
+├── src/
+│   ├── main.tsx
+│   ├── App.tsx              # ルーティング定義
+│   ├── api/
+│   │   ├── auth.ts
+│   │   ├── ingredients.ts
+│   │   ├── recipes.ts
+│   │   ├── suppliers.ts
+│   │   ├── dashboard.ts
+│   │   └── export.ts
+│   ├── pages/
+│   │   ├── DashboardPage.tsx
+│   │   ├── IngredientsPage.tsx
+│   │   ├── RecipesPage.tsx
+│   │   ├── RecipeDetailPage.tsx
+│   │   ├── SuppliersPage.tsx
+│   │   ├── AnalysisPage.tsx
+│   │   └── SettingsPage.tsx
+│   ├── components/
+│   │   ├── layout/
+│   │   │   ├── Sidebar.tsx
+│   │   │   └── TopBar.tsx
+│   │   ├── ingredients/
+│   │   │   ├── IngredientTable.tsx
+│   │   │   └── IngredientModal.tsx
+│   │   ├── recipes/
+│   │   │   ├── RecipeCard.tsx
+│   │   │   ├── RecipeForm.tsx
+│   │   │   └── CostBreakdown.tsx  ← 原価内訳表示
+│   │   └── common/
+│   │       ├── CostRateBadge.tsx  ← 🟢🟡🔴バッジ
+│   │       └── PriceSimulator.tsx ← 売価シミュレーター
+│   ├── hooks/
+│   │   ├── useIngredients.ts
+│   │   └── useRecipes.ts
+│   └── types/
+│       └── index.ts         # 共通型定義
+├── index.html
+├── vite.config.ts
+└── tailwind.config.js</pre>
+      </div>
+    </div>
+    <div class="note" style="margin-top:16px;">
+      household-budget App と同一の構成を継承。<code>services/cost_calculator.py</code> が本Appの中核で、原価計算・推奨売価算出ロジックを集約します。
+    </div>
+  </div>
+
+</div>
+
+  <!-- ===== 9. 売上×天気・時期分析機能 ===== -->
+  <div class="section" id="sales-weather">
+    <div class="section-title"><span class="section-num">9.</span>売上×天気・時期分析機能</div>
+
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-title">コンセプト</div>
+      <p style="font-size:14px;color:var(--text-muted);line-height:1.8;">
+        「今日みたいな雨の日、何が売れやすいか？」「週末と平日で人気メニューは変わるか？」を可視化する機能です。<br>
+        売上数量データ × 天気API（OpenWeatherMap）を組み合わせ、<strong style="color:var(--text)">日別・週別・月別</strong>の売上をグラフで確認できます。<br>
+        天気は自動取得（店舗の位置情報に基づく）し、過去データと照合して傾向を導き出します。
+      </p>
+    </div>
+
+    <!-- 分析軸 -->
+    <div class="grid-3" style="margin-bottom:24px;">
+      <div class="feature-card">
+        <div class="feature-tag tag-core">時期分析</div>
+        <div class="feature-name">📅 日別・週別・月別</div>
+        <div class="feature-desc">期間を切り替えてメニュー売上を比較</div>
+        <ul class="feature-list">
+          <li>今日の売上数ランキング</li>
+          <li>今週 vs 先週 比較棒グラフ</li>
+          <li>月別トレンド折れ線グラフ</li>
+          <li>曜日別ヒートマップ（月〜日）</li>
+          <li>季節（四半期）別集計</li>
+        </ul>
+      </div>
+      <div class="feature-card">
+        <div class="feature-tag tag-ext">天気相関</div>
+        <div class="feature-name">🌤️ 天気×売上グラフ</div>
+        <div class="feature-desc">天気条件ごとの売上傾向を可視化</div>
+        <ul class="feature-list">
+          <li>晴/曇/雨/雪 別の売上ランキング</li>
+          <li>気温帯別（〜15℃/16〜25℃/26℃〜）</li>
+          <li>散布図：気温 × 注文数の相関</li>
+          <li>「この天気の日のおすすめ」提示</li>
+          <li>天気データは1日1回自動取得</li>
+        </ul>
+      </div>
+      <div class="feature-card">
+        <div class="feature-tag tag-adv">AI提案</div>
+        <div class="feature-name">💡 売上予測・提案</div>
+        <div class="feature-desc">過去データから今日の注力メニューを提示</div>
+        <ul class="feature-list">
+          <li>「今日（雨・月曜）売れやすいTop3」</li>
+          <li>前週同曜日との比較コメント</li>
+          <li>在庫切れリスクの早期警告</li>
+          <li>（将来）仕入量の自動提案</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- 画面設計 -->
+    <div class="section-title" style="font-size:15px;margin-bottom:16px;">画面設計</div>
+    <div class="screen-card" style="margin-bottom:20px;">
+      <div class="screen-header">📈 売上分析ページ <code style="font-size:11px;color:var(--text-muted)">/sales-analysis</code></div>
+      <div class="screen-body">
+        <div class="grid-2">
+          <div>
+            <div class="screen-section">
+              <div class="screen-section-title">① 期間セレクター（上部）</div>
+              <div class="screen-items">
+                <span class="screen-item highlight">日</span>
+                <span class="screen-item highlight">週</span>
+                <span class="screen-item highlight">月</span>
+                <span class="screen-item">日付ピッカー</span>
+                <span class="screen-item">比較期間 ON/OFF</span>
+              </div>
+            </div>
+            <div class="screen-section">
+              <div class="screen-section-title">② 売上ランキング（棒グラフ）</div>
+              <div class="screen-items">
+                <span class="screen-item">メニュー別 注文数 横棒グラフ</span>
+                <span class="screen-item">カテゴリ別フィルタ</span>
+                <span class="screen-item">売上金額 / 注文数 切替</span>
+              </div>
+            </div>
+            <div class="screen-section">
+              <div class="screen-section-title">③ 曜日別ヒートマップ</div>
+              <div class="screen-items">
+                <span class="screen-item">縦軸: メニュー名</span>
+                <span class="screen-item">横軸: 月〜日</span>
+                <span class="screen-item">色の濃さ = 売上数量</span>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="screen-section">
+              <div class="screen-section-title">④ 天気フィルターパネル</div>
+              <div class="screen-items">
+                <span class="screen-item highlight">☀️ 晴れのみ</span>
+                <span class="screen-item highlight">🌧️ 雨のみ</span>
+                <span class="screen-item highlight">❄️ 雪のみ</span>
+                <span class="screen-item">気温範囲スライダー</span>
+                <span class="screen-item">全天気（デフォルト）</span>
+              </div>
+            </div>
+            <div class="screen-section">
+              <div class="screen-section-title">⑤ 天気×売上 散布図</div>
+              <div class="screen-items">
+                <span class="screen-item">X軸: 気温(℃) / 降水量</span>
+                <span class="screen-item">Y軸: 選択メニューの注文数</span>
+                <span class="screen-item">天気アイコンで色分け</span>
+                <span class="screen-item">回帰直線（相関係数表示）</span>
+              </div>
+            </div>
+            <div class="screen-section">
+              <div class="screen-section-title">⑥ 今日のおすすめパネル</div>
+              <div class="screen-items">
+                <span class="screen-item highlight">現在の天気・気温を自動取得</span>
+                <span class="screen-item">売れやすいメニュー Top3</span>
+                <span class="screen-item">根拠（過去◯件のデータ）</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DB追加テーブル -->
+    <div class="section-title" style="font-size:15px;margin-bottom:16px;">追加DBテーブル</div>
+    <div class="grid-2" style="margin-bottom:24px;">
+      <div class="card">
+        <div class="card-title">daily_sales（日別売上明細）</div>
+        <table>
+          <thead><tr><th>カラム</th><th>型</th><th>説明</th></tr></thead>
+          <tbody>
+            <tr><td class="pk">id</td><td><span class="type-badge">UUID</span></td><td>主キー</td></tr>
+            <tr><td class="fk">store_id</td><td><span class="type-badge">UUID</span></td><td>店舗FK</td></tr>
+            <tr><td class="fk">recipe_id</td><td><span class="type-badge">UUID</span></td><td>メニューFK</td></tr>
+            <tr><td>sold_date</td><td><span class="type-badge">DATE</span></td><td>販売日</td></tr>
+            <tr><td>quantity</td><td><span class="type-badge">INTEGER</span></td><td>販売数量</td></tr>
+            <tr><td>revenue</td><td><span class="type-badge">NUMERIC</span></td><td>売上金額（売価×数量）</td></tr>
+            <tr><td>day_of_week</td><td><span class="type-badge">INTEGER</span></td><td>曜日 0=月〜6=日（集計高速化）</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-title">weather_logs（天気ログ）</div>
+        <table>
+          <thead><tr><th>カラム</th><th>型</th><th>説明</th></tr></thead>
+          <tbody>
+            <tr><td class="pk">id</td><td><span class="type-badge">UUID</span></td><td>主キー</td></tr>
+            <tr><td class="fk">store_id</td><td><span class="type-badge">UUID</span></td><td>店舗FK</td></tr>
+            <tr><td>weather_date</td><td><span class="type-badge">DATE</span></td><td>記録日（UNIQUE per store）</td></tr>
+            <tr><td>condition</td><td><span class="type-badge">VARCHAR</span></td><td>晴/曇/雨/雪/霧</td></tr>
+            <tr><td>temp_max</td><td><span class="type-badge">NUMERIC</span></td><td>最高気温 (℃)</td></tr>
+            <tr><td>temp_min</td><td><span class="type-badge">NUMERIC</span></td><td>最低気温 (℃)</td></tr>
+            <tr><td>precipitation</td><td><span class="type-badge">NUMERIC</span></td><td>降水量 (mm)</td></tr>
+            <tr><td>source</td><td><span class="type-badge">VARCHAR</span></td><td>データソース (OpenWeatherMap)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-title">stores テーブルへの追加カラム（天気取得用）</div>
+      <table>
+        <thead><tr><th>カラム</th><th>型</th><th>説明</th></tr></thead>
+        <tbody>
+          <tr><td>latitude</td><td><span class="type-badge">NUMERIC?</span></td><td>店舗緯度（天気API用）</td></tr>
+          <tr><td>longitude</td><td><span class="type-badge">NUMERIC?</span></td><td>店舗経度（天気API用）</td></tr>
+          <tr><td>city_name</td><td><span class="type-badge">VARCHAR?</span></td><td>都市名（緯度経度の代替入力）</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- API追加 -->
+    <div class="section-title" style="font-size:15px;margin-bottom:16px;">追加APIエンドポイント</div>
+    <div class="api-group">
+      <div class="api-group-title">売上記録 /sales</div>
+      <div class="api-row"><span class="method POST">POST</span><span class="api-path">/sales/daily</span><span class="api-desc">その日の売上数量を登録（メニューID×数量）</span></div>
+      <div class="api-row"><span class="method PUT">PUT</span><span class="api-path">/sales/daily/{date}</span><span class="api-desc">登録済み売上の修正</span></div>
+      <div class="api-row"><span class="method GET">GET</span><span class="api-path">/sales/daily?date=YYYY-MM-DD</span><span class="api-desc">指定日の売上明細取得</span></div>
+    </div>
+    <div class="api-group">
+      <div class="api-group-title">売上分析 /sales/analysis</div>
+      <div class="api-row"><span class="method GET">GET</span><span class="api-path">/sales/analysis/ranking?period=day|week|month&amp;date=...</span><span class="api-desc">期間別メニュー売上ランキング</span></div>
+      <div class="api-row"><span class="method GET">GET</span><span class="api-path">/sales/analysis/trend?recipe_id=...&amp;months=6</span><span class="api-desc">メニュー別 月次トレンド</span></div>
+      <div class="api-row"><span class="method GET">GET</span><span class="api-path">/sales/analysis/by-weekday</span><span class="api-desc">曜日別×メニュー別 ヒートマップデータ</span></div>
+      <div class="api-row"><span class="method GET">GET</span><span class="api-path">/sales/analysis/by-weather?condition=rain|clear|snow</span><span class="api-desc">天気別売上ランキング</span></div>
+      <div class="api-row"><span class="method GET">GET</span><span class="api-path">/sales/analysis/weather-correlation?recipe_id=...</span><span class="api-desc">気温×売上 散布図データ</span></div>
+      <div class="api-row"><span class="method GET">GET</span><span class="api-path">/sales/analysis/today-recommend</span><span class="api-desc">今日の天気に基づくおすすめメニュー Top3</span></div>
+    </div>
+    <div class="api-group">
+      <div class="api-group-title">天気 /weather</div>
+      <div class="api-row"><span class="method GET">GET</span><span class="api-path">/weather/today</span><span class="api-desc">今日の天気を取得（OpenWeatherMap → キャッシュ）</span></div>
+      <div class="api-row"><span class="method POST">POST</span><span class="api-path">/weather/fetch-history?from=YYYY-MM-DD</span><span class="api-desc">過去天気データをAPIから一括取得・保存（初期設定用）</span></div>
+    </div>
+
+    <!-- 天気API連携 -->
+    <div class="section-title" style="font-size:15px;margin-bottom:16px;">外部API連携（OpenWeatherMap）</div>
+    <div class="grid-2">
+      <div class="formula-card">
+        <div class="card-title">天気データ取得フロー</div>
+        <div class="flow" style="flex-direction:column;align-items:flex-start;gap:6px;">
+          <div class="flow-step">毎日 AM 8:00 バックグラウンドジョブ起動<br><small style="color:var(--text-muted)">APScheduler（FastAPI内）</small></div>
+          <div class="flow-arrow" style="transform:rotate(90deg)">→</div>
+          <div class="flow-step">OpenWeatherMap API 呼び出し<br><small style="color:var(--text-muted)">店舗の緯度経度 or 都市名で取得</small></div>
+          <div class="flow-arrow" style="transform:rotate(90deg)">→</div>
+          <div class="flow-step">weather_logs テーブルに保存<br><small style="color:var(--text-muted)">天気/最高・最低気温/降水量</small></div>
+          <div class="flow-arrow" style="transform:rotate(90deg)">→</div>
+          <div class="flow-step">フロントの「今日のおすすめ」が自動更新</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">天気条件の分類ルール</div>
+        <table>
+          <thead><tr><th>ラベル</th><th>条件</th></tr></thead>
+          <tbody>
+            <tr><td>☀️ 晴れ</td><td>condition = Clear</td></tr>
+            <tr><td>⛅ 曇り</td><td>condition = Clouds</td></tr>
+            <tr><td>🌧️ 雨</td><td>condition = Rain / Drizzle</td></tr>
+            <tr><td>⛈️ 嵐</td><td>condition = Thunderstorm</td></tr>
+            <tr><td>❄️ 雪</td><td>condition = Snow</td></tr>
+            <tr><td>🥵 猛暑</td><td>temp_max ≥ 30℃</td></tr>
+            <tr><td>🥶 寒い</td><td>temp_max ≤ 10℃</td></tr>
+          </tbody>
+        </table>
+        <div class="note" style="margin-top:12px;">OpenWeatherMap の無料プラン（1日1,000回）で十分対応可能。API Keyは環境変数で管理。</div>
+      </div>
+    </div>
+
+    <!-- 売上入力フロー -->
+    <div class="section-title" style="font-size:15px;margin-top:24px;margin-bottom:16px;">売上データの入力方法</div>
+    <div class="card">
+      <div class="card-title">方法①（推奨）: 日次まとめ入力</div>
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">営業終了後に、その日の各メニューの販売数を一括登録する。POS不要でシンプル。</p>
+      <div class="flow">
+        <div class="flow-step">「今日の売上を登録」ボタン押下</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">メニュー一覧に販売数入力欄が表示</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">数量を入力して保存（0は省略可）</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">天気と紐付いて自動保存</div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:12px;">
+      <div class="card-title">方法②（将来対応）: CSV一括インポート</div>
+      <p style="font-size:13px;color:var(--text-muted);">POSレジのCSVエクスポートをそのままアップロードして自動マッピング。</p>
+    </div>
+
+    <!-- バックエンド追加ファイル -->
+    <div class="section-title" style="font-size:15px;margin-top:24px;margin-bottom:16px;">バックエンド 追加ファイル</div>
+    <div class="card">
+      <pre style="font-size:12px;line-height:1.8;color:var(--text-muted);">
+backend/app/
+├── models/
+│   ├── daily_sales.py          # daily_sales テーブル
+│   └── weather_log.py          # weather_logs テーブル
+├── routers/
+│   ├── sales.py                # 売上 CRUD & 分析エンドポイント
+│   └── weather.py              # 天気取得エンドポイント
+├── services/
+│   ├── weather_service.py      # OpenWeatherMap API クライアント
+│   ├── sales_analyzer.py       # 天気×売上相関計算ロジック
+│   └── scheduler.py            # APScheduler（天気自動取得ジョブ）</pre>
+    </div>
+
+    <!-- フロントエンド追加ファイル -->
+    <div class="section-title" style="font-size:15px;margin-top:24px;margin-bottom:16px;">フロントエンド 追加ファイル</div>
+    <div class="card">
+      <pre style="font-size:12px;line-height:1.8;color:var(--text-muted);">
+frontend/src/
+├── pages/
+│   ├── SalesAnalysisPage.tsx   # 売上×天気分析ページ
+│   └── SalesInputPage.tsx      # 日次売上入力ページ
+├── components/
+│   └── sales/
+│       ├── SalesRankingChart.tsx    # 棒グラフ（Recharts）
+│       ├── WeekdayHeatmap.tsx       # 曜日×メニュー ヒートマップ
+│       ├── WeatherCorrelation.tsx   # 天気×売上 散布図
+│       ├── TodayRecommend.tsx       # おすすめパネル
+│       └── SalesInputModal.tsx      # 日次売上入力フォーム
+└── api/
+    ├── sales.ts                # 売上 API クライアント
+    └── weather.ts              # 天気 API クライアント</pre>
+    </div>
+
+  </div>
+
+</div>
+</body>
+</html>

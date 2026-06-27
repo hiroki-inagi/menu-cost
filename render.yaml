@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: menu-cost-backend
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    rootDir: backend
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: menu-cost-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: OPENWEATHERMAP_API_KEY
+        sync: false
+
+  - type: web
+    name: menu-cost-frontend
+    runtime: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    rootDir: frontend
+    envVars:
+      - key: VITE_API_URL
+        value: https://menu-cost-backend.onrender.com/api
+
+databases:
+  - name: menu-cost-db
+    databaseName: menucost
+    plan: free
