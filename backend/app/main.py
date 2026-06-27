@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.database import Base, engine
 from app.routers import auth, store, suppliers, ingredients, recipes, dashboard, sales, weather, export
 
-# DB 繝・・繝悶Ν閾ｪ蜍穂ｽ懈・・域悽逡ｪ縺ｯAlembic繧剃ｽｿ逕ｨ・・Base.metadata.create_all(bind=engine)
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="MenuCost API", version="1.0.0")
 
@@ -32,4 +32,5 @@ def root():
 @app.get("/health")
 def health():
     return {"status": "healthy"}
+
 
