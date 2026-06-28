@@ -38,11 +38,11 @@ export default function RecipesPage() {
 
   const openNew = () => {
     setForm({ name: '', category: '', selling_price: '', target_cost_rate: '', servings: '1', note: '' })
-    setSelIngredients([{ ingredient_id: '', quantity: '', yield_rate: '1' }])
+    setSelIngredients([{ ingredient_id: '', quantity: '', yield_rate: '100' }])
     setShowModal(true)
   }
 
-  const addRow = () => setSelIngredients(s => [...s, { ingredient_id: '', quantity: '', yield_rate: '1' }])
+  const addRow = () => setSelIngredients(s => [...s, { ingredient_id: '', quantity: '', yield_rate: '100' }])
   const removeRow = (i: number) => setSelIngredients(s => s.filter((_, j) => j !== i))
 
   const save = async () => {
@@ -55,7 +55,7 @@ export default function RecipesPage() {
         servings: Number(form.servings),
         ingredients: selIngredients
           .filter(r => r.ingredient_id && r.quantity)
-          .map(r => ({ ingredient_id: r.ingredient_id, quantity: Number(r.quantity), yield_rate: Number(r.yield_rate) })),
+          .map(r => ({ ingredient_id: r.ingredient_id, quantity: Number(r.quantity), yield_rate: Number(r.yield_rate || 100) / 100 })),
       })
       setShowModal(false); load()
     } catch (e: any) { alert(e.response?.data?.detail || 'エラー') }
@@ -147,7 +147,7 @@ export default function RecipesPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-gray-400 mb-1">人数</label>
+                <label className="block text-xs text-gray-400 mb-1">何人前のレシピか</label>
                 <input type="number" min="1" value={form.servings} onChange={e => setForm(f => ({ ...f, servings: e.target.value }))}
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500" />
               </div>
@@ -157,32 +157,62 @@ export default function RecipesPage() {
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500" placeholder="例: 980" />
               </div>
               <div>
-                <label className="block text-xs text-gray-400 mb-1">目標原価率（%）</label>
-                <input type="number" value={form.target_cost_rate} onChange={e => setForm(f => ({ ...f, target_cost_rate: e.target.value }))}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500" placeholder="空欄=店舗デフォルト" />
+                <div className="flex items-center gap-1 mb-1">
+                  <label className="text-xs text-gray-400">目標原価率（%）</label>
+                  <span title="食材費を売価の何%以内に抑えるかの目標。例：売価1000円で原価率30%なら食材費300円以内。空欄の場合は店舗設定の値を使用。" className="text-gray-600 cursor-help text-xs">?</span>
+                </div>
+                <input type="number" min="1" max="100" value={form.target_cost_rate} onChange={e => setForm(f => ({ ...f, target_cost_rate: e.target.value }))}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500" placeholder="例: 30（空欄=店舗設定）" />
               </div>
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between mb-1">
                 <label className="text-xs text-gray-400">使用食材</label>
                 <button onClick={addRow} className="text-xs text-orange-500 hover:underline">+ 追加</button>
               </div>
               <div className="space-y-2">
-                {selIngredients.map((row, i) => (
-                  <div key={i} className="grid grid-cols-12 gap-1 items-center">
-                    <select value={row.ingredient_id} onChange={e => setSelIngredients(s => s.map((r, j) => j === i ? { ...r, ingredient_id: e.target.value } : r))}
-                      className="col-span-5 bg-gray-800 border border-gray-700 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-orange-500">
-                      <option value="">食材を選択</option>
-                      {allIngredients.map(ing => <option key={ing.id} value={ing.id}>{ing.name}（/{ing.unit}）</option>)}
-                    </select>
-                    <input type="number" placeholder="量" value={row.quantity} onChange={e => setSelIngredients(s => s.map((r, j) => j === i ? { ...r, quantity: e.target.value } : r))}
-                      className="col-span-3 bg-gray-800 border border-gray-700 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-orange-500" />
-                    <input type="number" min="0.01" max="1" step="0.01" placeholder="歩留" value={row.yield_rate} onChange={e => setSelIngredients(s => s.map((r, j) => j === i ? { ...r, yield_rate: e.target.value } : r))}
-                      className="col-span-3 bg-gray-800 border border-gray-700 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-orange-500" />
-                    <button onClick={() => removeRow(i)} className="col-span-1 flex justify-center"><X className="w-3.5 h-3.5 text-gray-500 hover:text-red-400" /></button>
-                  </div>
-                ))}
+                {selIngredients.map((row, i) => {
+                  const ing = allIngredients.find(x => x.id === row.ingredient_id)
+                  return (
+                    <div key={i} className="space-y-1.5 bg-gray-800/40 rounded-xl p-2.5 border border-gray-700/50">
+                      {/* 食材選択 */}
+                      <select value={row.ingredient_id} onChange={e => setSelIngredients(s => s.map((r, j) => j === i ? { ...r, ingredient_id: e.target.value } : r))}
+                        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-orange-500">
+                        <option value="">食材を選択してください</option>
+                        {allIngredients.map(ing => <option key={ing.id} value={ing.id}>{ing.name}（{ing.unit}単位 ¥{ing.unit_price}/{ing.unit}）</option>)}
+                      </select>
+                      {/* 数量 & 歩留まり */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[10px] text-gray-500 mb-1">
+                            使用量{ing ? <span className="text-orange-400 ml-1">（{ing.unit}）</span> : <span className="text-gray-600 ml-1">（食材を選ぶと単位が表示）</span>}
+                          </label>
+                          <input type="number" min="0" placeholder={ing ? `例: 100` : '—'} value={row.quantity}
+                            disabled={!ing}
+                            onChange={e => setSelIngredients(s => s.map((r, j) => j === i ? { ...r, quantity: e.target.value } : r))}
+                            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-orange-500 disabled:opacity-40 disabled:cursor-not-allowed" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-1 mb-1">
+                            <label className="text-[10px] text-gray-500">歩留まり（%）</label>
+                            <span title="仕込み後に実際に使える割合。例：鶏肉100gで骨を除くと85g→85と入力。わからなければ100のまま。" className="text-gray-600 cursor-help text-[10px]">?</span>
+                          </div>
+                          <input type="number" min="1" max="100" step="1" placeholder="100" value={row.yield_rate}
+                            onChange={e => setSelIngredients(s => s.map((r, j) => j === i ? { ...r, yield_rate: e.target.value } : r))}
+                            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-orange-500" />
+                        </div>
+                      </div>
+                      {/* コスト計算プレビュー */}
+                      {ing && row.quantity && (
+                        <div className="text-[10px] text-gray-500 bg-gray-900/60 rounded px-2 py-1">
+                          食材費: ¥{(ing.unit_price * Number(row.quantity) / (Number(row.yield_rate || 100) / 100)).toFixed(1)}
+                        </div>
+                      )}
+                      <button onClick={() => removeRow(i)} className="text-[10px] text-gray-600 hover:text-red-400 transition-colors">✕ この食材を削除</button>
+                    </div>
+                  )
+                })}
               </div>
             </div>
 

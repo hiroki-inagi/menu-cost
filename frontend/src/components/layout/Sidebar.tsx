@@ -7,7 +7,7 @@ const NAV = [
   { to: '/ingredients', icon: Leaf, label: '食材管理' },
   { to: '/recipes', icon: BookOpen, label: 'レシピ管理' },
   { to: '/suppliers', icon: Truck, label: '仕入先管理' },
-  { to: '/sales', icon: BarChart2, label: '売上分析' },
+  { to: '/sales', icon: BarChart2, label: '売上分析', exact: true },
   { to: '/sales/input', icon: PlusCircle, label: '売上入力' },
   { to: '/settings', icon: Settings, label: '設定' },
 ]

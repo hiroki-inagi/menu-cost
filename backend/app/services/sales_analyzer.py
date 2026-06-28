@@ -60,6 +60,7 @@ def get_weekday_heatmap(db: Session, store_id: uuid.UUID) -> List[WeekdayHeatmap
             Recipe.name.label("recipe_name"),
             DailySales.day_of_week,
             func.sum(DailySales.quantity).label("total_quantity"),
+            func.sum(DailySales.revenue).label("total_revenue"),
         )
         .join(Recipe, DailySales.recipe_id == Recipe.id)
         .filter(DailySales.store_id == store_id)
@@ -72,6 +73,7 @@ def get_weekday_heatmap(db: Session, store_id: uuid.UUID) -> List[WeekdayHeatmap
             recipe_name=r.recipe_name,
             day_of_week=r.day_of_week,
             total_quantity=r.total_quantity or 0,
+            total_revenue=float(r.total_revenue or 0),
         )
         for r in rows
     ]

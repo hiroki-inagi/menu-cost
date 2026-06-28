@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ingredientApi } from '../api/ingredients'
-import { Ingredient, PriceHistory } from '../types'
+import { Ingredient, PriceHistory, Supplier } from '../types'
+import { supplierApi } from '../api/suppliers'
 import { Plus, Search, Pencil, Trash2, X, TrendingUp } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 
@@ -26,20 +27,34 @@ export default function IngredientsPage() {
   const [category, setCategory] = useState('')
   const [editing, setEditing] = useState<Ingredient | null | 'new'>(null)
   const [history, setHistory] = useState<{ ing: Ingredient; data: PriceHistory[] } | null>(null)
-  const [form, setForm] = useState({ name: '', unit: '', unit_price: '', category: '', note: '' })
+  const [form, setForm] = useState({ name: '', unit: '', unit_price: '', category: '', supplier_id: '', note: '' })
+  const [calcMode, setCalcMode] = useState(true)  // true=購入金額から計算, false=単価直接入力
+  const [purchasePrice, setPurchasePrice] = useState('')   // 購入金額（¥）
+  const [purchaseQty, setPurchaseQty] = useState('')       // 購入量（単位）
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [suppliers, setSuppliers] = useState<Supplier[]>([])
 
   const load = () => ingredientApi.list({ q: search || undefined, category: category || undefined }).then(setIngredients)
+  useEffect(() => { supplierApi.list().then(setSuppliers) }, [])
   useEffect(() => { load() }, [search, category])
 
-  const openNew = () => { setForm({ name: '', unit: 'g', unit_price: '', category: '', note: '' }); setEditing('new') }
-  const openEdit = (i: Ingredient) => { setForm({ name: i.name, unit: i.unit, unit_price: String(i.unit_price), category: i.category || '', note: i.note || '' }); setEditing(i) }
+  const openNew = () => {
+    setForm({ name: '', unit: 'g', unit_price: '', category: '', note: '' })
+    setCalcMode(true); setPurchasePrice(''); setPurchaseQty('')
+    setEditing('new')
+  }
+  const openEdit = (i: Ingredient) => {
+    setForm({ name: i.name, unit: i.unit, unit_price: String(i.unit_price), category: i.category || '', supplier_id: (i as any).supplier_id || '', note: i.note || '' })
+    setCalcMode(false); setPurchasePrice(''); setPurchaseQty('')
+    setEditing(i)
+  }
 
-  const save = async () => {
+  const save = async (overridePrice?: string) => {
     setLoading(true); setError('')
     try {
-      const data = { ...form, unit_price: Number(form.unit_price), category: form.category || undefined }
+      const price = overridePrice ?? form.unit_price
+      const data = { ...form, unit_price: Number(price), category: form.category || undefined, supplier_id: form.supplier_id || undefined }
       if (editing === 'new') await ingredientApi.create(data as any)
       else if (editing) await ingredientApi.update(editing.id, data as any)
       setEditing(null); load()
@@ -119,43 +134,133 @@ export default function IngredientsPage() {
       </div>
 
       {/* 編集モーダル */}
-      {editing && (
-        <Modal title={editing === 'new' ? '食材を追加' : '食材を編集'} onClose={() => setEditing(null)}>
-          <div className="space-y-3">
-            {[
-              { key: 'name', label: '食材名', type: 'text', required: true },
-              { key: 'unit', label: '単位（g / ml / 個 など）', type: 'text', required: true },
-              { key: 'unit_price', label: '単価（¥/単位）', type: 'number', required: true },
-            ].map(({ key, label, type, required }) => (
-              <div key={key}>
-                <label className="block text-xs text-gray-400 mb-1">{label}</label>
-                <input type={type} value={(form as any)[key]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} required={required}
+      {editing && (() => {
+        const calcedPrice = (calcMode && purchasePrice && purchaseQty)
+          ? (Number(purchasePrice) / Number(purchaseQty)).toFixed(4)
+          : ''
+        const displayPrice = calcMode ? calcedPrice : form.unit_price
+        const unitLabel = form.unit || '単位'
+        return (
+          <Modal title={editing === 'new' ? '食材を追加' : '食材を編集'} onClose={() => setEditing(null)}>
+            <div className="space-y-3">
+              {/* 食材名 */}
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">食材名</label>
+                <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500"
+                  placeholder="例：鶏もも肉" />
+              </div>
+
+              {/* 単位 */}
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">単位</label>
+                <div className="flex gap-2">
+                  {['g', 'ml', '個', '枚', '本', '袋'].map(u => (
+                    <button key={u} onClick={() => setForm(f => ({ ...f, unit: u }))}
+                      className={`px-3 py-1.5 rounded-lg text-xs border transition-colors ${form.unit === u ? 'bg-orange-500 border-orange-500 text-white' : 'border-gray-700 text-gray-400 hover:border-gray-500'}`}>
+                      {u}
+                    </button>
+                  ))}
+                  <input value={['g','ml','個','枚','本','袋'].includes(form.unit) ? '' : form.unit}
+                    onChange={e => setForm(f => ({ ...f, unit: e.target.value }))}
+                    placeholder="その他"
+                    className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-orange-500" />
+                </div>
+              </div>
+
+              {/* 単価入力モード切替 */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs text-gray-400">仕入れ単価</label>
+                  <button onClick={() => { setCalcMode(m => !m); setPurchasePrice(''); setPurchaseQty('') }}
+                    className="text-xs text-orange-500 hover:underline">
+                    {calcMode ? '単価を直接入力する' : '購入金額から計算する'}
+                  </button>
+                </div>
+
+                {calcMode ? (
+                  /* 購入金額から計算モード */
+                  <div className="bg-gray-800/60 rounded-xl p-3 space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">購入金額（¥）</label>
+                        <input type="number" min="0" value={purchasePrice}
+                          onChange={e => setPurchasePrice(e.target.value)}
+                          placeholder="例: 300"
+                          className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">購入量（{unitLabel}）</label>
+                        <input type="number" min="0" value={purchaseQty}
+                          onChange={e => setPurchaseQty(e.target.value)}
+                          placeholder={`例: 1000`}
+                          className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500" />
+                      </div>
+                    </div>
+                    {calcedPrice && (
+                      <div className="flex items-center justify-between bg-orange-500/10 border border-orange-500/30 rounded-lg px-3 py-2">
+                        <span className="text-xs text-gray-400">計算された単価</span>
+                        <span className="font-mono font-bold text-orange-400">¥{Number(calcedPrice).toLocaleString(undefined,{maximumFractionDigits:2})} / {unitLabel}</span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* 直接入力モード */
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-400">¥</span>
+                    <input type="number" min="0" step="0.01" value={form.unit_price}
+                      onChange={e => setForm(f => ({ ...f, unit_price: e.target.value }))}
+                      placeholder="例: 0.30"
+                      className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500" />
+                    <span className="text-sm text-gray-400">/ {unitLabel}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* カテゴリ */}
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">カテゴリ</label>
+                <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500">
+                  <option value="">— 選択 —</option>
+                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+
+              {/* 仕入れ先 */}
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">仕入れ先</label>
+                <select value={form.supplier_id} onChange={e => setForm(f => ({ ...f, supplier_id: e.target.value }))}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500">
+                  <option value="">— 選択なし —</option>
+                  {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+
+              {/* 備考 */}
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">備考</label>
+                <input value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))}
+                  placeholder="仕入れ先・ブランドなど"
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500" />
               </div>
-            ))}
-            <div>
-              <label className="block text-xs text-gray-400 mb-1">カテゴリ</label>
-              <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500">
-                <option value="">— 選択 —</option>
-                {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
+
+              {error && <p className="text-red-400 text-xs">{error}</p>}
+              <div className="flex gap-2 pt-2">
+                <button onClick={() => setEditing(null)} className="flex-1 bg-gray-800 hover:bg-gray-700 text-sm py-2 rounded-lg">キャンセル</button>
+                <button
+                  onClick={() => {
+                    save(calcMode && calcedPrice ? calcedPrice : undefined)
+                  }}
+                  disabled={loading || (calcMode ? !calcedPrice : !form.unit_price)}
+                  className="flex-1 bg-orange-500 hover:bg-orange-600 text-white text-sm py-2 rounded-lg disabled:opacity-50">
+                  {loading ? '保存中...' : '保存'}
+                </button>
+              </div>
             </div>
-            <div>
-              <label className="block text-xs text-gray-400 mb-1">備考</label>
-              <input value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))}
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500" />
-            </div>
-            {error && <p className="text-red-400 text-xs">{error}</p>}
-            <div className="flex gap-2 pt-2">
-              <button onClick={() => setEditing(null)} className="flex-1 bg-gray-800 hover:bg-gray-700 text-sm py-2 rounded-lg">キャンセル</button>
-              <button onClick={save} disabled={loading} className="flex-1 bg-orange-500 hover:bg-orange-600 text-white text-sm py-2 rounded-lg disabled:opacity-50">
-                {loading ? '保存中...' : '保存'}
-              </button>
-            </div>
-          </div>
-        </Modal>
-      )}
+          </Modal>
+        )
+      })()}
 
       {/* 単価履歴モーダル */}
       {history && (

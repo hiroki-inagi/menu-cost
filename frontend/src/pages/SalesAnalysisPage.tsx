@@ -43,6 +43,7 @@ export default function SalesAnalysisPage() {
   // Heatmap データ整形
   const heatmapRecipes = [...new Set(heatmap.map(h => h.recipe_name))].slice(0, 10)
   const maxHeat = Math.max(...heatmap.map(h => h.total_quantity), 1)
+  const [heatmapMetric, setHeatmapMetric] = useState<'qty' | 'revenue'>('qty')
 
   // Weather ranking by condition
   const topByWeather: Record<string, WeatherSalesItem[]> = {}
@@ -192,52 +193,91 @@ export default function SalesAnalysisPage() {
 
       {/* 曜日別ヒートマップ */}
       {activeTab === 'heatmap' && (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
-          <h2 className="text-sm font-semibold text-gray-300 mb-4">曜日別 メニュー販売数ヒートマップ</h2>
-          {heatmapRecipes.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="text-xs">
-                <thead>
-                  <tr>
-                    <th className="text-left pr-4 pb-2 text-gray-400 font-normal w-32">メニュー</th>
-                    {WEEKDAYS.map(d => <th key={d} className="px-2 pb-2 text-gray-400 font-normal text-center">{d}</th>)}
-                  </tr>
-                </thead>
-                <tbody>
-                  {heatmapRecipes.map(recipe => (
-                    <tr key={recipe}>
-                      <td className="pr-4 py-1 text-gray-300 truncate max-w-32">{recipe}</td>
-                      {WEEKDAYS.map((_, dow) => {
-                        const cell = heatmap.find(h => h.recipe_name === recipe && h.day_of_week === dow)
-                        const qty = cell?.total_quantity || 0
-                        const intensity = qty / maxHeat
-                        return (
-                          <td key={dow} className="px-2 py-1 text-center">
-                            <div
-                              className="w-8 h-8 rounded flex items-center justify-center text-xs font-mono mx-auto"
-                              style={{ background: qty > 0 ? `rgba(249,115,22,${0.1 + intensity * 0.9})` : 'rgba(255,255,255,0.03)', color: intensity > 0.5 ? '#fff' : '#6b7280' }}
-                              title={`${recipe} ${WEEKDAYS[dow]}: ${qty}食`}
-                            >
-                              {qty > 0 ? qty : ''}
-                            </div>
-                          </td>
-                        )
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div className="flex items-center gap-2 mt-4 text-xs text-gray-500">
-                <span>少</span>
-                <div className="flex gap-1">
-                  {[0.1, 0.3, 0.5, 0.7, 0.9].map(i => (
-                    <div key={i} className="w-5 h-5 rounded" style={{ background: `rgba(249,115,22,${i})` }} />
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-gray-300">曜日別 メニュー分析</h2>
+            <div className="flex gap-1 bg-gray-800 rounded-lg p-1">
+              <button onClick={() => setHeatmapMetric('qty')}
+                className={`px-3 py-1 rounded text-xs transition-colors ${heatmapMetric === 'qty' ? 'bg-orange-500 text-white' : 'text-gray-400 hover:text-gray-200'}`}>
+                販売数
+              </button>
+              <button onClick={() => setHeatmapMetric('revenue')}
+                className={`px-3 py-1 rounded text-xs transition-colors ${heatmapMetric === 'revenue' ? 'bg-orange-500 text-white' : 'text-gray-400 hover:text-gray-200'}`}>
+                売上金額
+              </button>
+            </div>
+          </div>
+          {heatmapRecipes.length > 0 ? (() => {
+            const maxVal = heatmapMetric === 'qty'
+              ? Math.max(...heatmap.map(h => h.total_quantity), 1)
+              : Math.max(...heatmap.map(h => h.total_revenue), 1)
+            return (
+              <div className="overflow-x-auto">
+                {/* 曜日ヘッダー */}
+                <div className="grid text-xs text-gray-400 mb-1" style={{ gridTemplateColumns: '9rem repeat(7, 1fr)' }}>
+                  <div></div>
+                  {['月','火','水','木','金','土','日'].map((d, i) => (
+                    <div key={d} className={`text-center font-medium py-1 ${i >= 5 ? 'text-orange-400' : ''}`}>{d}</div>
                   ))}
                 </div>
-                <span>多</span>
+                {/* メニュー行 */}
+                <div className="space-y-1.5">
+                  {heatmapRecipes.map(recipe => (
+                    <div key={recipe} className="grid items-center gap-1" style={{ gridTemplateColumns: '9rem repeat(7, 1fr)' }}>
+                      <div className="text-xs text-gray-300 truncate pr-2">{recipe}</div>
+                      {[0,1,2,3,4,5,6].map(dow => {
+                        const cell = heatmap.find(h => h.recipe_name === recipe && h.day_of_week === dow)
+                        const val = heatmapMetric === 'qty' ? (cell?.total_quantity || 0) : (cell?.total_revenue || 0)
+                        const intensity = val > 0 ? 0.15 + (val / maxVal) * 0.85 : 0
+                        const isWeekend = dow >= 5
+                        const color = isWeekend ? `rgba(251,146,60,${intensity})` : `rgba(249,115,22,${intensity})`
+                        const label = heatmapMetric === 'qty'
+                          ? (val > 0 ? `${val}食` : '')
+                          : (val > 0 ? `¥${Math.round(val/1000)}k` : '')
+                        const tooltip = heatmapMetric === 'qty'
+                          ? `${recipe} (${'月火水木金土日'[dow]}): ${val}食`
+                          : `${recipe} (${'月火水木金土日'[dow]}): ¥${val.toLocaleString()}`
+                        return (
+                          <div key={dow} title={tooltip}
+                            className="relative h-12 rounded-lg flex flex-col items-center justify-center cursor-default transition-transform hover:scale-105"
+                            style={{ background: val > 0 ? color : 'rgba(255,255,255,0.03)', border: val > 0 ? `1px solid rgba(249,115,22,${intensity * 0.5})` : '1px solid transparent' }}>
+                            {val > 0 ? (
+                              <>
+                                <span className="text-xs font-bold" style={{ color: intensity > 0.5 ? '#fff' : '#d1d5db' }}>{label}</span>
+                                <span className="text-[10px] mt-0.5" style={{ color: intensity > 0.5 ? 'rgba(255,255,255,0.7)' : '#6b7280' }}>
+                                  {heatmapMetric === 'qty'
+                                    ? `¥${Math.round((cell?.total_revenue||0)/1000)}k`
+                                    : `${cell?.total_quantity||0}食`}
+                                </span>
+                              </>
+                            ) : (
+                              <span className="text-[10px] text-gray-700">—</span>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  ))}
+                </div>
+                {/* 凡例 */}
+                <div className="flex items-center gap-3 mt-4 text-xs text-gray-500">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-4 h-4 rounded" style={{ background: 'rgba(249,115,22,0.15)', border: '1px solid rgba(249,115,22,0.1)' }} />
+                    <span>少ない</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-4 h-4 rounded" style={{ background: 'rgba(249,115,22,1)' }} />
+                    <span>多い</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 ml-2">
+                    <div className="w-4 h-4 rounded" style={{ background: 'rgba(251,146,60,0.7)' }} />
+                    <span className="text-orange-400">土日</span>
+                  </div>
+                  <span className="ml-auto text-gray-600">ホバーで詳細表示</span>
+                </div>
               </div>
-            </div>
-          ) : (
+            )
+          })() : (
             <div className="py-12 text-center text-gray-500 text-sm">曜日別データがありません</div>
           )}
         </div>

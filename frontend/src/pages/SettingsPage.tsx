@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { storeApi } from '../api/store'
 import { Store } from '../types'
-import { Save, CheckCircle } from 'lucide-react'
+import { Save, CheckCircle, Eye, EyeOff, Key } from 'lucide-react'
 
 export default function SettingsPage() {
   const [store, setStore] = useState<Store | null>(null)
@@ -11,6 +11,27 @@ export default function SettingsPage() {
   })
   const [saved, setSaved] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [apiKey, setApiKey] = useState('')
+  const [apiKeyStatus, setApiKeyStatus] = useState<{ has_key: boolean; masked: string } | null>(null)
+  const [showKey, setShowKey] = useState(false)
+  const [apiKeySaved, setApiKeySaved] = useState(false)
+  const [apiKeyLoading, setApiKeyLoading] = useState(false)
+
+  useEffect(() => {
+    storeApi.getWeatherApiKeyStatus().then(setApiKeyStatus).catch(() => {})
+  }, [])
+
+  const saveApiKey = async () => {
+    if (!apiKey.trim()) return
+    setApiKeyLoading(true)
+    try {
+      await storeApi.updateWeatherApiKey(apiKey.trim())
+      setApiKeyStatus({ has_key: true, masked: apiKey.slice(0,4) + '****' + apiKey.slice(-4) })
+      setApiKey('')
+      setApiKeySaved(true)
+      setTimeout(() => setApiKeySaved(false), 3000)
+    } finally { setApiKeyLoading(false) }
+  }
 
   useEffect(() => {
     storeApi.getSettings().then(s => {
@@ -84,11 +105,43 @@ export default function SettingsPage() {
         </button>
       </div>
 
-      <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 text-sm text-gray-400 space-y-2">
-        <h3 className="font-semibold text-gray-300">OpenWeatherMap APIキーの設定</h3>
-        <p>天気×売上分析を使うには、バックエンドの <code className="bg-gray-800 px-1 rounded">.env</code> に以下を追加してください：</p>
-        <code className="block bg-gray-800 rounded-lg p-3 text-xs text-green-400">OPENWEATHERMAP_API_KEY=your_key_here</code>
-        <p>APIキーは <a href="https://openweathermap.org/api" target="_blank" rel="noopener" className="text-orange-400 hover:underline">openweathermap.org</a> で無料取得できます（1日1,000リクエスト）。</p>
+      <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-4">
+        <div className="flex items-center gap-2">
+          <Key className="w-4 h-4 text-orange-400" />
+          <h3 className="font-semibold text-gray-300 text-sm">OpenWeatherMap APIキー</h3>
+          {apiKeyStatus?.has_key && (
+            <span className="ml-auto text-xs bg-green-900/40 border border-green-800/50 text-green-400 px-2 py-0.5 rounded-full">✓ 設定済み {apiKeyStatus.masked}</span>
+          )}
+        </div>
+
+        {!apiKeyStatus?.has_key && (
+          <p className="text-xs text-gray-500">
+            天気×売上分析を使うために必要です。
+            <a href="https://openweathermap.org/api" target="_blank" rel="noopener" className="text-orange-400 hover:underline ml-1">openweathermap.org</a> で無料取得（1日1,000リクエスト）。
+          </p>
+        )}
+
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <input
+              type={showKey ? 'text' : 'password'}
+              value={apiKey}
+              onChange={e => setApiKey(e.target.value)}
+              placeholder={apiKeyStatus?.has_key ? '新しいAPIキーを入力（変更する場合）' : 'APIキーを貼り付け'}
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500 pr-9"
+            />
+            <button onClick={() => setShowKey(v => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300">
+              {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+          <button onClick={saveApiKey} disabled={apiKeyLoading || !apiKey.trim()}
+            className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white text-sm px-4 rounded-lg transition-colors">
+            {apiKeySaved ? <><CheckCircle className="w-4 h-4" /> 保存済み</> : apiKeyLoading ? '保存中...' : '保存'}
+          </button>
+        </div>
+        {apiKeySaved && (
+          <p className="text-xs text-green-400">✓ APIキーを保存しました。天気×売上分析が使えるようになりました。</p>
+        )}
       </div>
     </div>
   )

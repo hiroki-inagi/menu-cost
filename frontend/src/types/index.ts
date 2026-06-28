@@ -105,6 +105,7 @@ export interface WeekdayHeatmapItem {
   recipe_name: string
   day_of_week: number
   total_quantity: number
+  total_revenue: number
 }
 
 export interface WeatherSalesItem {

@@ -42,6 +42,7 @@ class WeekdayHeatmapItem(BaseModel):
     recipe_name: str
     day_of_week: int
     total_quantity: int
+    total_revenue: float
 
 class TodayRecommend(BaseModel):
     recipe_id: uuid.UUID
