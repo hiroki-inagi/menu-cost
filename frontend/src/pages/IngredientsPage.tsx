@@ -40,7 +40,7 @@ export default function IngredientsPage() {
   useEffect(() => { load() }, [search, category])
 
   const openNew = () => {
-    setForm({ name: '', unit: 'g', unit_price: '', category: '', note: '' })
+    setForm({ name: '', unit: 'g', unit_price: '', category: '', supplier_id: '', note: '' })
     setCalcMode(true); setPurchasePrice(''); setPurchaseQty('')
     setEditing('new')
   }
