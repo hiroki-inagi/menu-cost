@@ -32,6 +32,18 @@ export default function SalesAnalysisPage() {
   const [selectedRecipe, setSelectedRecipe] = useState('')
   const [activeTab, setActiveTab] = useState<'period' | 'weather' | 'heatmap'>('period')
 
+  // 気温相関グラフ用（気温昇順ソート＋色計算）
+  const correlationSorted = [...correlation].sort((a, b) => a.temp_max - b.temp_max)
+  const corrMin = correlationSorted.length > 0 ? Math.min(...correlationSorted.map(d => d.quantity)) : 0
+  const corrMax = correlationSorted.length > 0 ? Math.max(...correlationSorted.map(d => d.quantity)) : 1
+  const corrColor = (qty: number) => {
+    const ratio = corrMax === corrMin ? 0.5 : (qty - corrMin) / (corrMax - corrMin)
+    const r = Math.round(59 + ratio * (249 - 59))
+    const g = Math.round(130 + ratio * (115 - 130))
+    const b = Math.round(246 + ratio * (22 - 246))
+    return `rgb(${r},${g},${b})`
+  }
+
   const { data: cachedHeatmap } = useCachedFetch('sales_heatmap', () => salesApi.byWeekday())
   const { data: cachedRecipes } = useCachedFetch('recipes_active', () => recipeApi.list({ active_only: true }))
   useEffect(() => { if (cachedHeatmap) setHeatmap(cachedHeatmap as WeekdayHeatmapItem[]) }, [cachedHeatmap])
@@ -176,35 +188,25 @@ export default function SalesAnalysisPage() {
                 {recipes.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
               </select>
             </div>
-            {correlation.length > 0 ? (() => {
-              const sorted = [...correlation].sort((a, b) => a.temp_max - b.temp_max)
-              const min = Math.min(...sorted.map(d => d.quantity))
-              const max = Math.max(...sorted.map(d => d.quantity))
-              return (
+            {correlation.length > 0 ? (
               <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={sorted} margin={{ left: 0, right: 8, bottom: 16 }}>
+                <BarChart data={correlationSorted} margin={{ left: 0, right: 8, bottom: 16 }}>
                   <XAxis dataKey="temp_max" unit="℃" tick={{ fill: '#6b7280', fontSize: 11 }}
                     label={{ value: '最高気温', position: 'insideBottom', offset: -8, fill: '#6b7280', fontSize: 11 }} />
                   <YAxis unit="食" tick={{ fill: '#6b7280', fontSize: 11 }} width={36} />
                   <Tooltip
                     contentStyle={{ background: '#1f2937', border: '1px solid #374151', fontSize: 12 }}
                     formatter={(v: number) => [`${v}食`, '販売数']}
-                    labelFormatter={(l) => `気温 ${l}℃`}
+                    labelFormatter={(l: number) => `気温 ${l}℃`}
                   />
                   <Bar dataKey="quantity" radius={[4, 4, 0, 0]}>
-                    {sorted.map((d, i) => {
-                      // 販売数が多いほど濃いオレンジ、少ないほど青寄り
-                      const ratio = max === min ? 0.5 : (d.quantity - min) / (max - min)
-                      const r = Math.round(59 + ratio * (249 - 59))
-                      const g = Math.round(130 + ratio * (115 - 130))
-                      const b = Math.round(246 + ratio * (22 - 246))
-                      return <Cell key={i} fill={`rgb(${r},${g},${b})`} />
-                    })}
+                    {correlationSorted.map((d, i) => (
+                      <Cell key={i} fill={corrColor(d.quantity)} />
+                    ))}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
-              )
-            })()}
+            )
             ) : (
               <div className="h-24 flex items-center justify-center text-gray-500 text-sm">
                 {selectedRecipe ? 'データが不足しています' : 'メニューを選択してください'}
