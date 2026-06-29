@@ -3,6 +3,7 @@ import { salesApi } from '../api/sales'
 import { weatherApi } from '../api/weather'
 import { recipeApi } from '../api/recipes'
 import { RankingItem, WeekdayHeatmapItem, WeatherSalesItem, TodayWeather, Recipe } from '../types'
+import { useCachedFetch } from '../hooks/useCachedFetch'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   ScatterChart, Scatter, ZAxis, Cell,
@@ -31,11 +32,14 @@ export default function SalesAnalysisPage() {
   const [selectedRecipe, setSelectedRecipe] = useState('')
   const [activeTab, setActiveTab] = useState<'period' | 'weather' | 'heatmap'>('period')
 
+  const { data: cachedHeatmap } = useCachedFetch('sales_heatmap', () => salesApi.byWeekday())
+  const { data: cachedRecipes } = useCachedFetch('recipes_active', () => recipeApi.list({ active_only: true }))
+  useEffect(() => { if (cachedHeatmap) setHeatmap(cachedHeatmap as WeekdayHeatmapItem[]) }, [cachedHeatmap])
+  useEffect(() => { if (cachedRecipes) setRecipes(cachedRecipes as Recipe[]) }, [cachedRecipes])
+
   useEffect(() => { salesApi.ranking(period).then(setRanking) }, [period])
-  useEffect(() => { salesApi.byWeekday().then(setHeatmap) }, [])
   useEffect(() => { salesApi.byWeather(weatherFilter || undefined).then(setWeatherSales) }, [weatherFilter])
   useEffect(() => { weatherApi.today().then(setWeather).catch(() => {}) }, [])
-  useEffect(() => { recipeApi.list({ active_only: true }).then(setRecipes) }, [])
   useEffect(() => {
     if (selectedRecipe) salesApi.weatherCorrelation(selectedRecipe).then(setCorrelation)
   }, [selectedRecipe])

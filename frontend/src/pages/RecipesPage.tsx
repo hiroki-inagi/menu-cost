@@ -5,6 +5,8 @@ import { ingredientApi } from '../api/ingredients'
 import { Recipe, Ingredient } from '../types'
 import { Plus, Pencil, Trash2, X, ChevronRight } from 'lucide-react'
 import CostRateBadge from '../components/common/CostRateBadge'
+import { useCachedFetch } from '../hooks/useCachedFetch'
+import { clearCache } from '../api/cache'
 
 const CATEGORIES = ['前菜', 'スープ', 'メイン', 'サイド', 'デザート', 'ドリンク', 'その他']
 
@@ -32,9 +34,11 @@ export default function RecipesPage() {
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
 
+  const { data: cachedIngredients } = useCachedFetch('all_ingredients', () => ingredientApi.list())
+  useEffect(() => { if (cachedIngredients) setAllIngredients(cachedIngredients as Ingredient[]) }, [cachedIngredients])
+
   const load = () => recipeApi.list({ category: category || undefined, active_only: false }).then(setRecipes)
   useEffect(() => { load() }, [category])
-  useEffect(() => { ingredientApi.list().then(setAllIngredients) }, [])
 
   const openNew = () => {
     setForm({ name: '', category: '', selling_price: '', target_cost_rate: '', servings: '1', note: '' })
@@ -57,6 +61,7 @@ export default function RecipesPage() {
           .filter(r => r.ingredient_id && r.quantity)
           .map(r => ({ ingredient_id: r.ingredient_id, quantity: Number(r.quantity), yield_rate: Number(r.yield_rate || 100) / 100 })),
       })
+      clearCache('dashboard_summary'); clearCache('dashboard_ranking'); clearCache('dashboard_breakdown')
       setShowModal(false); load()
     } catch (e: any) { alert(e.response?.data?.detail || 'エラー') }
     finally { setLoading(false) }
@@ -64,6 +69,7 @@ export default function RecipesPage() {
 
   const remove = async (r: Recipe) => {
     if (!confirm(`「${r.name}」を削除しますか？`)) return
+    clearCache('dashboard_summary'); clearCache('dashboard_ranking'); clearCache('dashboard_breakdown')
     await recipeApi.delete(r.id); load()
   }
 

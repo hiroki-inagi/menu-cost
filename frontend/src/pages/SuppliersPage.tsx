@@ -2,15 +2,19 @@ import { useEffect, useState } from 'react'
 import { supplierApi } from '../api/suppliers'
 import { Supplier } from '../types'
 import { Plus, Pencil, Trash2, X } from 'lucide-react'
+import { useCachedFetch } from '../hooks/useCachedFetch'
+import { clearCache } from '../api/cache'
 
 export default function SuppliersPage() {
+  const { data: suppliersData } = useCachedFetch('suppliers', () => supplierApi.list())
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [editing, setEditing] = useState<Supplier | null | 'new'>(null)
   const [form, setForm] = useState({ name: '', contact: '', note: '' })
   const [loading, setLoading] = useState(false)
 
+  useEffect(() => { if (suppliersData) setSuppliers(suppliersData as Supplier[]) }, [suppliersData])
+
   const load = () => supplierApi.list().then(setSuppliers)
-  useEffect(() => { load() }, [])
 
   const openNew = () => { setForm({ name: '', contact: '', note: '' }); setEditing('new') }
   const openEdit = (s: Supplier) => { setForm({ name: s.name, contact: s.contact || '', note: s.note || '' }); setEditing(s) }
@@ -21,12 +25,14 @@ export default function SuppliersPage() {
       const data = { name: form.name, contact: form.contact || undefined, note: form.note || undefined }
       if (editing === 'new') await supplierApi.create(data)
       else if (editing) await supplierApi.update(editing.id, data)
+      clearCache('suppliers')
       setEditing(null); load()
     } finally { setLoading(false) }
   }
 
   const remove = async (s: Supplier) => {
     if (!confirm(`「${s.name}」を削除しますか？`)) return
+    clearCache('suppliers')
     await supplierApi.delete(s.id); load()
   }
 

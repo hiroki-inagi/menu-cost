@@ -6,6 +6,7 @@ import { TodayWeather, TodayRecommend } from '../types'
 import CostRateBadge from '../components/common/CostRateBadge'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { AlertTriangle, BookOpen, Leaf, TrendingUp, Cloud } from 'lucide-react'
+import { useCachedFetch } from '../hooks/useCachedFetch'
 
 const WEATHER_ICON: Record<string, string> = {
   Clear: '☀️', Clouds: '⛅', Rain: '🌧️', Drizzle: '🌦️', Snow: '❄️',
@@ -13,16 +14,14 @@ const WEATHER_ICON: Record<string, string> = {
 }
 
 export default function DashboardPage() {
-  const [summary, setSummary] = useState<any>(null)
-  const [ranking, setRanking] = useState<any[]>([])
-  const [breakdown, setBreakdown] = useState<any[]>([])
+  const { data: summary } = useCachedFetch('dashboard_summary', () => dashboardApi.summary())
+  const { data: rankingRaw } = useCachedFetch('dashboard_ranking', () => dashboardApi.costRanking())
+  const { data: breakdown } = useCachedFetch('dashboard_breakdown', () => dashboardApi.categoryBreakdown())
+  const ranking = (rankingRaw as any[] | null)?.slice(0, 8) ?? []
   const [weather, setWeather] = useState<TodayWeather | null>(null)
   const [recommends, setRecommends] = useState<TodayRecommend[]>([])
 
   useEffect(() => {
-    dashboardApi.summary().then(setSummary)
-    dashboardApi.costRanking().then(r => setRanking(r.slice(0, 8)))
-    dashboardApi.categoryBreakdown().then(setBreakdown)
     weatherApi.today().then(w => { setWeather(w); salesApi.todayRecommend().then(setRecommends) }).catch(() => {})
   }, [])
 

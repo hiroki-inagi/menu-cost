@@ -4,6 +4,8 @@ import { Ingredient, PriceHistory, Supplier } from '../types'
 import { supplierApi } from '../api/suppliers'
 import { Plus, Search, Pencil, Trash2, X, TrendingUp } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
+import { useCachedFetch } from '../hooks/useCachedFetch'
+import { clearCache } from '../api/cache'
 
 const CATEGORIES = ['肉類', '魚介類', '野菜', '乳製品', '調味料', '飲料', 'その他']
 
@@ -35,8 +37,10 @@ export default function IngredientsPage() {
   const [error, setError] = useState('')
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
 
+  const { data: cachedSuppliers } = useCachedFetch('suppliers', () => supplierApi.list())
+  useEffect(() => { if (cachedSuppliers) setSuppliers(cachedSuppliers as Supplier[]) }, [cachedSuppliers])
+
   const load = () => ingredientApi.list({ q: search || undefined, category: category || undefined }).then(setIngredients)
-  useEffect(() => { supplierApi.list().then(setSuppliers) }, [])
   useEffect(() => { load() }, [search, category])
 
   const openNew = () => {
@@ -57,6 +61,7 @@ export default function IngredientsPage() {
       const data = { ...form, unit_price: Number(price), category: form.category || undefined, supplier_id: form.supplier_id || undefined }
       if (editing === 'new') await ingredientApi.create(data as any)
       else if (editing) await ingredientApi.update(editing.id, data as any)
+      clearCache('all_ingredients'); clearCache('dashboard_summary')
       setEditing(null); load()
     } catch (e: any) { setError(e.response?.data?.detail || 'エラーが発生しました') }
     finally { setLoading(false) }
