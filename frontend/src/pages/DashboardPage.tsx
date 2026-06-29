@@ -16,8 +16,9 @@ const WEATHER_ICON: Record<string, string> = {
 export default function DashboardPage() {
   const { data: summary } = useCachedFetch('dashboard_summary', () => dashboardApi.summary())
   const { data: rankingRaw } = useCachedFetch('dashboard_ranking', () => dashboardApi.costRanking())
-  const { data: breakdown } = useCachedFetch('dashboard_breakdown', () => dashboardApi.categoryBreakdown())
-  const ranking = (rankingRaw as any[] | null)?.slice(0, 8) ?? []
+  const { data: breakdownRaw } = useCachedFetch('dashboard_breakdown', () => dashboardApi.categoryBreakdown())
+  const ranking: any[] = (rankingRaw as any[] | null)?.slice(0, 8) ?? []
+  const breakdown: any[] = (breakdownRaw as any[] | null) ?? []
   const [weather, setWeather] = useState<TodayWeather | null>(null)
   const [recommends, setRecommends] = useState<TodayRecommend[]>([])
 
