@@ -190,7 +190,7 @@ for rd in recipes_data:
 print(f"  → {len(recipe_ids)}品登録")
 
 # ── 売上データ (過去2週間) ──
-print("\n【6/6】売上データ投入（過去14日）...")
+print("\n【6/7】売上データ投入（過去14日）...")
 random.seed(42)
 today = date.today()
 ok_count = 0
@@ -207,5 +207,65 @@ for days_ago in range(14, 0, -1):
     if r:
         ok_count += 1
 print(f"  ✅ {ok_count}/14日分 投入完了")
+
+# ── 天気ログ (過去2週間) ──
+print("\n【7/7】天気ログ投入（過去14日）...")
+import sys, os
+sys.path.insert(0, os.path.dirname(__file__))
+try:
+    from app.database import SessionLocal
+    from app.models.weather_log import WeatherLog
+    from app.models.user import User
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+    import uuid as _uuid
+
+    WEATHER_PATTERN = [
+        ("Clear",  "晴れ",  32.0, 24.0, 0.0),
+        ("Clear",  "晴れ",  31.0, 23.5, 0.0),
+        ("Clouds", "曇り",  28.0, 22.0, 0.0),
+        ("Rain",   "雨",    25.0, 20.0, 8.0),
+        ("Clear",  "晴れ",  30.0, 22.0, 0.0),
+        ("Clouds", "曇り",  27.0, 21.0, 0.0),
+        ("Clear",  "晴れ",  33.0, 25.0, 0.0),
+        ("Rain",   "雨",    24.0, 19.0, 12.0),
+        ("Clouds", "曇り",  26.0, 20.0, 0.0),
+        ("Clear",  "晴れ",  31.0, 23.0, 0.0),
+        ("Clear",  "晴れ",  32.0, 24.0, 0.0),
+        ("Rain",   "雨",    23.0, 18.0, 5.0),
+        ("Clouds", "曇り",  27.0, 21.0, 0.0),
+        ("Clear",  "晴れ",  30.0, 22.0, 0.0),
+    ]
+
+    db = SessionLocal()
+    # ログイン中のユーザーのstore_idを取得
+    user_obj = db.query(User).filter(User.email == EMAIL).first()
+    if user_obj and user_obj.store_id:
+        wl_count = 0
+        for i, days_ago in enumerate(range(14, 0, -1)):
+            d = today - timedelta(days=days_ago)
+            cond, label, tmax, tmin, precip = WEATHER_PATTERN[i % len(WEATHER_PATTERN)]
+            # upsert（重複は無視）
+            existing = db.query(WeatherLog).filter(
+                WeatherLog.store_id == user_obj.store_id,
+                WeatherLog.weather_date == d,
+            ).first()
+            if not existing:
+                db.add(WeatherLog(
+                    store_id=user_obj.store_id,
+                    weather_date=d,
+                    condition=cond,
+                    condition_label=label,
+                    temp_max=tmax,
+                    temp_min=tmin,
+                    precipitation=precip,
+                ))
+                wl_count += 1
+        db.commit()
+        db.close()
+        print(f"  ✅ {wl_count}日分の天気ログ投入完了")
+    else:
+        print("  ⚠️  store_id が見つかりません。スキップ")
+except Exception as e:
+    print(f"  ⚠️  天気ログの投入に失敗しました: {e}")
 
 print("\n🎉 完了！ブラウザをリロードしてください。")
