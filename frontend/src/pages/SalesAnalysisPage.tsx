@@ -206,7 +206,6 @@ export default function SalesAnalysisPage() {
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
-            )
             ) : (
               <div className="h-24 flex items-center justify-center text-gray-500 text-sm">
                 {selectedRecipe ? 'データが不足しています' : 'メニューを選択してください'}
