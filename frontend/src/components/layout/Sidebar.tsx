@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Leaf, BookOpen, Truck, BarChart2, Settings, LogOut, UtensilsCrossed, PlusCircle } from 'lucide-react'
+import { LayoutDashboard, Leaf, BookOpen, Truck, BarChart2, Settings, LogOut, UtensilsCrossed, PlusCircle, FlaskConical } from 'lucide-react'
 import { User } from '../../types'
 
 interface Props {
@@ -16,6 +16,7 @@ const NAV = [
   { to: '/suppliers', icon: Truck, label: '仕入先管理' },
   { to: '/sales', icon: BarChart2, label: '売上分析', exact: true },
   { to: '/sales/input', icon: PlusCircle, label: '売上入力' },
+  { to: '/formulas', icon: FlaskConical, label: '計算式一覧' },
   { to: '/settings', icon: Settings, label: '設定' },
 ]
 

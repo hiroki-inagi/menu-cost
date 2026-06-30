@@ -13,6 +13,7 @@ import SuppliersPage from './pages/SuppliersPage'
 import SalesAnalysisPage from './pages/SalesAnalysisPage'
 import SalesInputPage from './pages/SalesInputPage'
 import SettingsPage from './pages/SettingsPage'
+import FormulasPage from './pages/FormulasPage'
 
 function PrivateRoute({ user, children }: { user: User | null; children: React.ReactNode }) {
   if (!user) return <Navigate to="/login" replace />
@@ -51,6 +52,7 @@ export default function App() {
           <Route path="suppliers" element={<SuppliersPage />} />
           <Route path="sales" element={<SalesAnalysisPage />} />
           <Route path="sales/input" element={<SalesInputPage />} />
+          <Route path="formulas" element={<FormulasPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
