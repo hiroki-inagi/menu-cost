@@ -1,9 +1,17 @@
 ﻿from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 from app.database import Base, engine
 from app.routers import auth, store, suppliers, ingredients, recipes, dashboard, sales, weather, export
 
 Base.metadata.create_all(bind=engine)
+
+# 既存テーブルへの列追加（CREATE TABLEでは追加されないため）
+with engine.connect() as conn:
+    conn.execute(text(
+        "ALTER TABLE stores ADD COLUMN IF NOT EXISTS weather_api_key VARCHAR"
+    ))
+    conn.commit()
 
 app = FastAPI(title="MenuCost API", version="1.0.0")
 

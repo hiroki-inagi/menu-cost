@@ -2,7 +2,6 @@ import httpx
 from datetime import date, timedelta
 from typing import Optional
 from sqlalchemy.orm import Session
-from app.config import settings
 from app.models.weather_log import WeatherLog
 from app.models.store import Store
 import uuid
@@ -28,7 +27,8 @@ def get_condition_label(condition: str, temp_max: float) -> tuple[str, str]:
     return condition, label
 
 async def fetch_today_weather(store: Store) -> Optional[dict]:
-    if not settings.OPENWEATHERMAP_API_KEY:
+    api_key = store.weather_api_key
+    if not api_key:
         return None
     try:
         if store.latitude and store.longitude:
@@ -39,7 +39,7 @@ async def fetch_today_weather(store: Store) -> Optional[dict]:
             return None
 
         async with httpx.AsyncClient() as client:
-            url = f"https://api.openweathermap.org/data/2.5/forecast?{query}&appid={settings.OPENWEATHERMAP_API_KEY}&units=metric&cnt=8"
+            url = f"https://api.openweathermap.org/data/2.5/forecast?{query}&appid={api_key}&units=metric&cnt=8"
             resp = await client.get(url, timeout=10)
             resp.raise_for_status()
             data = resp.json()
