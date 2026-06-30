@@ -94,7 +94,7 @@ export default function SettingsPage() {
 
   const fields = [
     { key: 'name', label: '店舗名', type: 'text', help: '' },
-    { key: 'default_cost_rate', label: 'デフォルト目標原価率（%）', type: 'number', help: '例: 30 → 30%' },
+    { key: 'default_cost_rate', label: '原価率・食材費率（%）', type: 'number', help: '売上に対する食材費の割合。例: 30 → 売上100円のうち30円が食材費' },
     { key: 'tax_rate', label: '消費税率（%）', type: 'number', help: '例: 10 → 10%' },
     { key: 'rounding_unit', label: '売価の端数処理単位（円）', type: 'number', help: '50 or 100' },
     { key: 'labor_cost_rate', label: '人件費率（%）—任意', type: 'number', help: 'FL比率算出用' },

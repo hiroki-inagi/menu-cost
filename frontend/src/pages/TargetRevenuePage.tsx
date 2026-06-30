@@ -175,25 +175,37 @@ export default function TargetRevenuePage() {
           <Info className="w-4 h-4 text-blue-400 shrink-0" />
           <span className="text-sm font-semibold text-gray-300">店舗設定から自動で取得</span>
         </div>
+
+        {/* 原価率の説明 */}
+        <div className="bg-blue-950/30 border border-blue-900/40 rounded-lg px-3 py-2.5 text-xs text-blue-300/80 leading-relaxed">
+          <strong className="text-blue-200">原価率（食材費率）とは？</strong><br />
+          売上のうち「食材費が占める割合」です。<br />
+          例えば原価率 30% なら、1,000円売れるたびに 300円分の食材を使っていることになります。<br />
+          <span className="text-blue-400/60 mt-1 block">「設定」ページの「デフォルト目標原価率」がここに反映されています。</span>
+        </div>
+
         <div className="grid grid-cols-3 gap-3">
           <div className="bg-gray-800/60 rounded-lg p-3 text-center">
-            <div className="text-xs text-gray-500 mb-1">食材費率（F）</div>
+            <div className="text-xs text-gray-500 mb-1">原価率（食材費）</div>
             <div className="text-lg font-bold text-orange-400">{pct(r.foodRate)}</div>
+            <div className="text-xs text-gray-600 mt-1">設定の「目標原価率」</div>
           </div>
           <div className="bg-gray-800/60 rounded-lg p-3 text-center">
-            <div className="text-xs text-gray-500 mb-1">人件費率（L）</div>
+            <div className="text-xs text-gray-500 mb-1">人件費率</div>
             <div className={`text-lg font-bold ${r.laborRate > 0 ? 'text-orange-400' : 'text-gray-500'}`}>
               {r.laborRate > 0 ? pct(r.laborRate) : '未設定'}
             </div>
+            <div className="text-xs text-gray-600 mt-1">設定の「人件費率」</div>
           </div>
           <div className={`rounded-lg p-3 text-center ${r.variableRate <= 0.6 ? 'bg-green-900/20 border border-green-800/30' : 'bg-red-900/20 border border-red-800/30'}`}>
-            <div className="text-xs text-gray-500 mb-1">変動費率計</div>
+            <div className="text-xs text-gray-500 mb-1">合計（FL比率）</div>
             <div className={`text-lg font-bold ${r.variableRate <= 0.6 ? 'text-green-400' : 'text-red-400'}`}>{pct(r.variableRate)}</div>
+            <div className="text-xs text-gray-600 mt-1">60%以下が目安</div>
           </div>
         </div>
         {r.laborRate === 0 && (
           <p className="text-xs text-yellow-500/80">
-            ⚠ 人件費率が未設定のため変動費率が低く出ています。「設定」ページで人件費率を入力するとより正確になります。
+            ⚠ 人件費率が未設定のため合計が低く出ています。「設定」ページで人件費率を入力するとより正確になります。
           </p>
         )}
       </div>
