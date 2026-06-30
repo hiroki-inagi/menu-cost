@@ -1,16 +1,17 @@
 import { useEffect, useState } from 'react'
 import { storeApi } from '../api/store'
 import { Store } from '../types'
-import { Save, CheckCircle, Eye, EyeOff, Key } from 'lucide-react'
+import { Save, CheckCircle, Eye, EyeOff, Key, MapPin, Locate } from 'lucide-react'
 
 export default function SettingsPage() {
   const [store, setStore] = useState<Store | null>(null)
   const [form, setForm] = useState({
     name: '', default_cost_rate: '', tax_rate: '', rounding_unit: '50',
-    labor_cost_rate: '', city_name: '',
+    labor_cost_rate: '', city_name: '', latitude: '', longitude: '',
   })
   const [saved, setSaved] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [locating, setLocating] = useState(false)
   const [apiKey, setApiKey] = useState('')
   const [apiKeyStatus, setApiKeyStatus] = useState<{ has_key: boolean; masked: string } | null>(null)
   const [showKey, setShowKey] = useState(false)
@@ -43,6 +44,8 @@ export default function SettingsPage() {
         rounding_unit: String(s.rounding_unit),
         labor_cost_rate: s.labor_cost_rate ? String(Math.round(s.labor_cost_rate * 100)) : '',
         city_name: s.city_name || '',
+        latitude: s.latitude ? String(s.latitude) : '',
+        longitude: s.longitude ? String(s.longitude) : '',
       })
     })
   }, [])
@@ -57,10 +60,30 @@ export default function SettingsPage() {
         rounding_unit: Number(form.rounding_unit),
         labor_cost_rate: form.labor_cost_rate ? Number(form.labor_cost_rate) / 100 : undefined,
         city_name: form.city_name || undefined,
+        latitude: form.latitude ? Number(form.latitude) : undefined,
+        longitude: form.longitude ? Number(form.longitude) : undefined,
       })
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
     } finally { setLoading(false) }
+  }
+
+  // ブラウザの現在地を取得して自動入力
+  const getLocation = () => {
+    if (!navigator.geolocation) { alert('このブラウザは現在地取得に対応していません'); return }
+    setLocating(true)
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        setForm(f => ({
+          ...f,
+          latitude: pos.coords.latitude.toFixed(6),
+          longitude: pos.coords.longitude.toFixed(6),
+          city_name: '', // 座標を使うので都市名は空にする
+        }))
+        setLocating(false)
+      },
+      () => { alert('現在地を取得できませんでした。手動で入力してください。'); setLocating(false) }
+    )
   }
 
   if (!store) return <div className="flex items-center justify-center h-40"><div className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" /></div>
@@ -75,13 +98,18 @@ export default function SettingsPage() {
     { key: 'tax_rate', label: '消費税率（%）', type: 'number', help: '例: 10 → 10%' },
     { key: 'rounding_unit', label: '売価の端数処理単位（円）', type: 'number', help: '50 or 100' },
     { key: 'labor_cost_rate', label: '人件費率（%）—任意', type: 'number', help: 'FL比率算出用' },
-    { key: 'city_name', label: '都市名（天気API用）', type: 'text', help: '例: Tokyo, Osaka — OpenWeatherMap で使用' },
   ]
+
+  // 天気の場所指定モード（座標 or 都市名）
+  const hasCoords = form.latitude && form.longitude
+  const locationMode: 'coords' | 'city' | 'none' =
+    hasCoords ? 'coords' : form.city_name ? 'city' : 'none'
 
   return (
     <div className="max-w-lg space-y-6">
       <h1 className="text-xl font-bold">店舗設定</h1>
 
+      {/* 基本設定 */}
       <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-4">
         {fields.map(({ key, label, type, help }) => (
           <div key={key}>
@@ -105,6 +133,107 @@ export default function SettingsPage() {
         </button>
       </div>
 
+      {/* 天気取得場所の設定 */}
+      <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-4">
+        <div className="flex items-center gap-2">
+          <MapPin className="w-4 h-4 text-blue-400" />
+          <h3 className="font-semibold text-gray-300 text-sm">天気取得の場所</h3>
+          {locationMode === 'coords' && (
+            <span className="ml-auto text-xs bg-blue-900/40 border border-blue-800/50 text-blue-400 px-2 py-0.5 rounded-full">✓ 座標で設定済み</span>
+          )}
+          {locationMode === 'city' && (
+            <span className="ml-auto text-xs bg-blue-900/40 border border-blue-800/50 text-blue-400 px-2 py-0.5 rounded-full">✓ 都市名で設定済み</span>
+          )}
+        </div>
+
+        <p className="text-xs text-gray-500 leading-relaxed">
+          天気×売上分析で使う場所を設定します。<strong className="text-gray-300">座標（緯度・経度）</strong>の方が正確です。
+          習志野市など市区町村単位で指定したい場合は座標をおすすめします。
+        </p>
+
+        {/* 座標入力 */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="text-xs text-gray-400 font-medium">緯度・経度（推奨）</label>
+            <button
+              onClick={getLocation}
+              disabled={locating}
+              className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 disabled:opacity-50 transition-colors"
+            >
+              <Locate className="w-3.5 h-3.5" />
+              {locating ? '取得中...' : '現在地を自動取得'}
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">緯度（北緯）</label>
+              <input
+                type="number" step="0.000001"
+                value={form.latitude}
+                onChange={e => setForm(f => ({ ...f, latitude: e.target.value }))}
+                placeholder="例: 35.674400"
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-orange-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">経度（東経）</label>
+              <input
+                type="number" step="0.000001"
+                value={form.longitude}
+                onChange={e => setForm(f => ({ ...f, longitude: e.target.value }))}
+                placeholder="例: 140.019400"
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-orange-500"
+              />
+            </div>
+          </div>
+          {/* 習志野市のクイック設定 */}
+          <div className="flex flex-wrap gap-2 pt-1">
+            <span className="text-xs text-gray-600">クイック設定：</span>
+            {[
+              { label: '習志野市', lat: '35.674400', lon: '140.019400' },
+              { label: '東京', lat: '35.689500', lon: '139.691700' },
+              { label: '大阪', lat: '34.693700', lon: '135.502100' },
+            ].map(city => (
+              <button
+                key={city.label}
+                onClick={() => setForm(f => ({ ...f, latitude: city.lat, longitude: city.lon, city_name: '' }))}
+                className="text-xs text-blue-400 hover:text-blue-300 border border-blue-800/40 hover:border-blue-600/60 px-2 py-0.5 rounded-lg transition-colors"
+              >
+                {city.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 区切り */}
+        <div className="flex items-center gap-3">
+          <div className="flex-1 h-px bg-gray-800" />
+          <span className="text-xs text-gray-600">または</span>
+          <div className="flex-1 h-px bg-gray-800" />
+        </div>
+
+        {/* 都市名入力 */}
+        <div>
+          <label className="block text-xs text-gray-400 font-medium mb-1">都市名で指定（英語）</label>
+          <input
+            type="text"
+            value={form.city_name}
+            onChange={e => setForm(f => ({ ...f, city_name: e.target.value, latitude: '', longitude: '' }))}
+            placeholder="例: Tokyo, Osaka, Chiba"
+            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500"
+          />
+          <p className="text-xs text-gray-600 mt-1">
+            ※ 座標と都市名を両方入力した場合は<strong className="text-gray-500">座標が優先</strong>されます
+          </p>
+        </div>
+
+        <button onClick={save} disabled={loading}
+          className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-lg transition-colors disabled:opacity-50 text-sm">
+          {saved ? <><CheckCircle className="w-4 h-4" /> 保存しました</> : <><Save className="w-4 h-4" />{loading ? '保存中...' : '場所を保存'}</>}
+        </button>
+      </div>
+
+      {/* APIキー設定 */}
       <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-4">
         <div className="flex items-center gap-2">
           <Key className="w-4 h-4 text-orange-400" />
