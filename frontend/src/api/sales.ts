@@ -13,4 +13,6 @@ export const salesApi = {
   todayRecommend: () => api.get<TodayRecommend[]>('/sales/analysis/today-recommend').then(r => r.data),
   weatherCorrelation: (recipe_id: string) =>
     api.get('/sales/analysis/weather-correlation', { params: { recipe_id } }).then(r => r.data),
+  monthlySales: (year: number, month: number) =>
+    api.get('/sales/analysis/monthly', { params: { year, month } }).then(r => r.data),
 }

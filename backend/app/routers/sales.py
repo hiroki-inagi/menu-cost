@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import List, Optional
 from datetime import date
+import calendar
 from app.database import get_db
 from app.models.store import Store
 from app.models.recipe import Recipe
@@ -89,3 +91,83 @@ def today_recommend(store: Store = Depends(get_current_store), db: Session = Dep
 @router.get("/analysis/weather-correlation", response_model=List[WeatherCorrelationPoint])
 def weather_correlation(recipe_id: uuid.UUID, store: Store = Depends(get_current_store), db: Session = Depends(get_db)):
     return get_weather_correlation(db, store.id, recipe_id)
+
+@router.get("/analysis/monthly")
+def monthly_sales(
+    year: int = Query(default=None),
+    month: int = Query(default=None),
+    store: Store = Depends(get_current_store),
+    db: Session = Depends(get_db),
+):
+    """月間の日別売上合計を返す。デフォルトは当月。"""
+    today = date.today()
+    y = year or today.year
+    m = month or today.month
+
+    # 月の初日〜末日
+    _, last_day = calendar.monthrange(y, m)
+    month_start = date(y, m, 1)
+    month_end = date(y, m, last_day)
+
+    # 日別合計
+    rows = (
+        db.query(
+            DailySales.sold_date,
+            func.sum(DailySales.revenue).label("total_revenue"),
+            func.sum(DailySales.quantity).label("total_quantity"),
+        )
+        .filter(
+            DailySales.store_id == store.id,
+            DailySales.sold_date >= month_start,
+            DailySales.sold_date <= month_end,
+        )
+        .group_by(DailySales.sold_date)
+        .order_by(DailySales.sold_date)
+        .all()
+    )
+
+    # 日別の詳細（クリックしたとき用）
+    detail_rows = (
+        db.query(DailySales)
+        .filter(
+            DailySales.store_id == store.id,
+            DailySales.sold_date >= month_start,
+            DailySales.sold_date <= month_end,
+        )
+        .all()
+    )
+
+    # 日付ごとのメニュー詳細をまとめる
+    detail_map: dict = {}
+    for r in detail_rows:
+        key = str(r.sold_date)
+        if key not in detail_map:
+            detail_map[key] = []
+        detail_map[key].append({
+            "recipe_id": str(r.recipe_id),
+            "recipe_name": r.recipe.name if r.recipe else "",
+            "quantity": r.quantity,
+            "revenue": float(r.revenue),
+        })
+
+    daily = [
+        {
+            "date": str(row.sold_date),
+            "total_revenue": float(row.total_revenue or 0),
+            "total_quantity": int(row.total_quantity or 0),
+            "items": detail_map.get(str(row.sold_date), []),
+        }
+        for row in rows
+    ]
+
+    total_revenue = sum(d["total_revenue"] for d in daily)
+    sales_days = len(daily)
+
+    return {
+        "year": y,
+        "month": m,
+        "daily": daily,
+        "total_revenue": total_revenue,
+        "sales_days": sales_days,
+        "avg_daily_revenue": total_revenue / sales_days if sales_days > 0 else 0,
+    }
