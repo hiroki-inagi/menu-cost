@@ -49,8 +49,14 @@ export default function SalesAnalysisPage() {
   useEffect(() => { if (cachedHeatmap) setHeatmap(cachedHeatmap as WeekdayHeatmapItem[]) }, [cachedHeatmap])
   useEffect(() => { if (cachedRecipes) setRecipes(cachedRecipes as Recipe[]) }, [cachedRecipes])
 
-  useEffect(() => { salesApi.ranking(period).then(setRanking) }, [period])
-  useEffect(() => { salesApi.byWeather(weatherFilter || undefined).then(setWeatherSales) }, [weatherFilter])
+  // 期間ごとにキャッシュキーを分けて即表示（初回のみAPI取得）
+  const { data: rankingData } = useCachedFetch(`sales_ranking_${period}`, () => salesApi.ranking(period))
+  useEffect(() => { if (rankingData) setRanking(rankingData as RankingItem[]) }, [rankingData])
+
+  // 天気フィルターごとにキャッシュキーを分けて即表示
+  const weatherCacheKey = `sales_weather_${weatherFilter || 'all'}`
+  const { data: weatherSalesData } = useCachedFetch(weatherCacheKey, () => salesApi.byWeather(weatherFilter || undefined))
+  useEffect(() => { if (weatherSalesData) setWeatherSales(weatherSalesData as WeatherSalesItem[]) }, [weatherSalesData])
   useEffect(() => { weatherApi.today().then(setWeather).catch(() => {}) }, [])
   useEffect(() => {
     if (selectedRecipe) salesApi.weatherCorrelation(selectedRecipe).then(setCorrelation)

@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { ingredientApi } from '../api/ingredients'
 import { Ingredient, PriceHistory, Supplier } from '../types'
 import { supplierApi } from '../api/suppliers'
 import { Plus, Search, Pencil, Trash2, X, TrendingUp } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { useCachedFetch } from '../hooks/useCachedFetch'
-import { clearCache } from '../api/cache'
+import { clearCache, setCached } from '../api/cache'
 
 const CATEGORIES = ['肉類', '魚介類', '野菜', '乳製品', '調味料', '飲料', 'その他']
 
@@ -24,24 +24,41 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 }
 
 export default function IngredientsPage() {
-  const [ingredients, setIngredients] = useState<Ingredient[]>([])
+  // 全食材を一度だけ取得してキャッシュ（検索・フィルタはブラウザ内で即時実行）
+  const { data: allIngredientsData, loading } = useCachedFetch('all_ingredients', () => ingredientApi.list())
+  const allIngredients: Ingredient[] = (allIngredientsData as Ingredient[] | null) ?? []
+
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('')
   const [editing, setEditing] = useState<Ingredient | null | 'new'>(null)
   const [history, setHistory] = useState<{ ing: Ingredient; data: PriceHistory[] } | null>(null)
   const [form, setForm] = useState({ name: '', unit: '', unit_price: '', category: '', supplier_id: '', note: '' })
-  const [calcMode, setCalcMode] = useState(true)  // true=購入金額から計算, false=単価直接入力
-  const [purchasePrice, setPurchasePrice] = useState('')   // 購入金額（¥）
-  const [purchaseQty, setPurchaseQty] = useState('')       // 購入量（単位）
-  const [loading, setLoading] = useState(false)
+  const [calcMode, setCalcMode] = useState(true)
+  const [purchasePrice, setPurchasePrice] = useState('')
+  const [purchaseQty, setPurchaseQty] = useState('')
+  const [saveLoading, setSaveLoading] = useState(false)
   const [error, setError] = useState('')
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
 
   const { data: cachedSuppliers } = useCachedFetch('suppliers', () => supplierApi.list())
   useEffect(() => { if (cachedSuppliers) setSuppliers(cachedSuppliers as Supplier[]) }, [cachedSuppliers])
 
-  const load = () => ingredientApi.list({ q: search || undefined, category: category || undefined }).then(setIngredients)
-  useEffect(() => { load() }, [search, category])
+  // フィルタはブラウザ内で即時実行 — APIを叩かない
+  const ingredients = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return allIngredients.filter(i =>
+      (!q || i.name.toLowerCase().includes(q)) &&
+      (!category || i.category === category)
+    )
+  }, [allIngredients, search, category])
+
+  // CRUD後: キャッシュを更新してUIを即反映
+  const refreshIngredients = async () => {
+    const fresh = await ingredientApi.list()
+    setCached('all_ingredients', fresh)
+    setCached('dashboard_summary', null as any) // ダッシュボードも再取得させる
+    clearCache('dashboard_summary')
+  }
 
   const openNew = () => {
     setForm({ name: '', unit: 'g', unit_price: '', category: '', supplier_id: '', note: '' })
@@ -55,22 +72,24 @@ export default function IngredientsPage() {
   }
 
   const save = async (overridePrice?: string) => {
-    setLoading(true); setError('')
+    setSaveLoading(true); setError('')
     try {
       const price = overridePrice ?? form.unit_price
       const data = { ...form, unit_price: Number(price), category: form.category || undefined, supplier_id: form.supplier_id || undefined }
       if (editing === 'new') await ingredientApi.create(data as any)
       else if (editing) await ingredientApi.update(editing.id, data as any)
-      clearCache('all_ingredients'); clearCache('dashboard_summary')
-      setEditing(null); load()
+      setEditing(null)
+      await refreshIngredients()
     } catch (e: any) { setError(e.response?.data?.detail || 'エラーが発生しました') }
-    finally { setLoading(false) }
+    finally { setSaveLoading(false) }
   }
 
   const remove = async (i: Ingredient) => {
     if (!confirm(`「${i.name}」を削除しますか？`)) return
-    try { await ingredientApi.delete(i.id); load() }
-    catch (e: any) { alert(e.response?.data?.detail || '削除できません') }
+    try {
+      await ingredientApi.delete(i.id)
+      await refreshIngredients()
+    } catch (e: any) { alert(e.response?.data?.detail || '削除できません') }
   }
 
   const showHistory = async (i: Ingredient) => {
@@ -131,8 +150,15 @@ export default function IngredientsPage() {
                 </td>
               </tr>
             ))}
-            {ingredients.length === 0 && (
-              <tr><td colSpan={5} className="px-4 py-12 text-center text-gray-500">食材が登録されていません</td></tr>
+            {loading && allIngredients.length === 0 && (
+              <tr><td colSpan={5} className="px-4 py-12 text-center">
+                <div className="flex justify-center"><div className="w-5 h-5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" /></div>
+              </td></tr>
+            )}
+            {!loading && ingredients.length === 0 && (
+              <tr><td colSpan={5} className="px-4 py-12 text-center text-gray-500">
+                {search || category ? '条件に一致する食材がありません' : '食材が登録されていません'}
+              </td></tr>
             )}
           </tbody>
         </table>
@@ -148,7 +174,6 @@ export default function IngredientsPage() {
         return (
           <Modal title={editing === 'new' ? '食材を追加' : '食材を編集'} onClose={() => setEditing(null)}>
             <div className="space-y-3">
-              {/* 食材名 */}
               <div>
                 <label className="block text-xs text-gray-400 mb-1">食材名</label>
                 <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
@@ -156,7 +181,6 @@ export default function IngredientsPage() {
                   placeholder="例：鶏もも肉" />
               </div>
 
-              {/* 単位 */}
               <div>
                 <label className="block text-xs text-gray-400 mb-1">単位</label>
                 <div className="flex gap-2">
@@ -173,7 +197,6 @@ export default function IngredientsPage() {
                 </div>
               </div>
 
-              {/* 単価入力モード切替 */}
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-xs text-gray-400">仕入れ単価</label>
@@ -184,7 +207,6 @@ export default function IngredientsPage() {
                 </div>
 
                 {calcMode ? (
-                  /* 購入金額から計算モード */
                   <div className="bg-gray-800/60 rounded-xl p-3 space-y-2">
                     <div className="grid grid-cols-2 gap-2">
                       <div>
@@ -198,7 +220,7 @@ export default function IngredientsPage() {
                         <label className="block text-xs text-gray-500 mb-1">購入量（{unitLabel}）</label>
                         <input type="number" min="0" value={purchaseQty}
                           onChange={e => setPurchaseQty(e.target.value)}
-                          placeholder={`例: 1000`}
+                          placeholder="例: 1000"
                           className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500" />
                       </div>
                     </div>
@@ -210,7 +232,6 @@ export default function IngredientsPage() {
                     )}
                   </div>
                 ) : (
-                  /* 直接入力モード */
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-gray-400">¥</span>
                     <input type="number" min="0" step="0.01" value={form.unit_price}
@@ -222,7 +243,6 @@ export default function IngredientsPage() {
                 )}
               </div>
 
-              {/* カテゴリ */}
               <div>
                 <label className="block text-xs text-gray-400 mb-1">カテゴリ</label>
                 <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
@@ -232,7 +252,6 @@ export default function IngredientsPage() {
                 </select>
               </div>
 
-              {/* 仕入れ先 */}
               <div>
                 <label className="block text-xs text-gray-400 mb-1">仕入れ先</label>
                 <select value={form.supplier_id} onChange={e => setForm(f => ({ ...f, supplier_id: e.target.value }))}
@@ -242,7 +261,6 @@ export default function IngredientsPage() {
                 </select>
               </div>
 
-              {/* 備考 */}
               <div>
                 <label className="block text-xs text-gray-400 mb-1">備考</label>
                 <input value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))}
@@ -254,12 +272,10 @@ export default function IngredientsPage() {
               <div className="flex gap-2 pt-2">
                 <button onClick={() => setEditing(null)} className="flex-1 bg-gray-800 hover:bg-gray-700 text-sm py-2 rounded-lg">キャンセル</button>
                 <button
-                  onClick={() => {
-                    save(calcMode && calcedPrice ? calcedPrice : undefined)
-                  }}
-                  disabled={loading || (calcMode ? !calcedPrice : !form.unit_price)}
+                  onClick={() => save(calcMode && calcedPrice ? calcedPrice : undefined)}
+                  disabled={saveLoading || (calcMode ? !calcedPrice : !form.unit_price)}
                   className="flex-1 bg-orange-500 hover:bg-orange-600 text-white text-sm py-2 rounded-lg disabled:opacity-50">
-                  {loading ? '保存中...' : '保存'}
+                  {saveLoading ? '保存中...' : '保存'}
                 </button>
               </div>
             </div>

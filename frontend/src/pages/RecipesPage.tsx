@@ -1,12 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { recipeApi } from '../api/recipes'
 import { ingredientApi } from '../api/ingredients'
 import { Recipe, Ingredient } from '../types'
-import { Plus, Pencil, Trash2, X, ChevronRight } from 'lucide-react'
+import { Plus, Trash2, X, ChevronRight } from 'lucide-react'
 import CostRateBadge from '../components/common/CostRateBadge'
 import { useCachedFetch } from '../hooks/useCachedFetch'
-import { clearCache } from '../api/cache'
+import { clearCache, setCached } from '../api/cache'
 
 const CATEGORIES = ['前菜', 'スープ', 'メイン', 'サイド', 'デザート', 'ドリンク', 'その他']
 
@@ -25,20 +25,39 @@ function Modal({ title, onClose, children }: any) {
 }
 
 export default function RecipesPage() {
-  const [recipes, setRecipes] = useState<Recipe[]>([])
+  // 全レシピを一度だけ取得してキャッシュ（カテゴリフィルタはブラウザ内で即時実行）
+  const { data: allRecipesData, loading } = useCachedFetch('all_recipes', () => recipeApi.list({ active_only: false }))
+  const allRecipes: Recipe[] = (allRecipesData as Recipe[] | null) ?? []
+
   const [allIngredients, setAllIngredients] = useState<Ingredient[]>([])
   const [category, setCategory] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [form, setForm] = useState({ name: '', category: '', selling_price: '', target_cost_rate: '', servings: '1', note: '' })
   const [selIngredients, setSelIngredients] = useState<{ ingredient_id: string; quantity: string; yield_rate: string }[]>([])
-  const [loading, setLoading] = useState(false)
+  const [saveLoading, setSaveLoading] = useState(false)
   const navigate = useNavigate()
 
   const { data: cachedIngredients } = useCachedFetch('all_ingredients', () => ingredientApi.list())
   useEffect(() => { if (cachedIngredients) setAllIngredients(cachedIngredients as Ingredient[]) }, [cachedIngredients])
 
-  const load = () => recipeApi.list({ category: category || undefined, active_only: false }).then(setRecipes)
-  useEffect(() => { load() }, [category])
+  // カテゴリフィルタはブラウザ内で即時実行
+  const recipes = useMemo(() =>
+    !category ? allRecipes : allRecipes.filter(r => r.category === category),
+    [allRecipes, category]
+  )
+
+  // CRUD後: キャッシュを更新
+  const refreshRecipes = async () => {
+    const [fresh, freshActive] = await Promise.all([
+      recipeApi.list({ active_only: false }),
+      recipeApi.list({ active_only: true }),
+    ])
+    setCached('all_recipes', fresh)
+    setCached('recipes_active', freshActive)
+    clearCache('dashboard_summary')
+    clearCache('dashboard_ranking')
+    clearCache('dashboard_breakdown')
+  }
 
   const openNew = () => {
     setForm({ name: '', category: '', selling_price: '', target_cost_rate: '', servings: '1', note: '' })
@@ -50,7 +69,7 @@ export default function RecipesPage() {
   const removeRow = (i: number) => setSelIngredients(s => s.filter((_, j) => j !== i))
 
   const save = async () => {
-    setLoading(true)
+    setSaveLoading(true)
     try {
       await recipeApi.create({
         ...form,
@@ -61,16 +80,16 @@ export default function RecipesPage() {
           .filter(r => r.ingredient_id && r.quantity)
           .map(r => ({ ingredient_id: r.ingredient_id, quantity: Number(r.quantity), yield_rate: Number(r.yield_rate || 100) / 100 })),
       })
-      clearCache('dashboard_summary'); clearCache('dashboard_ranking'); clearCache('dashboard_breakdown')
-      setShowModal(false); load()
+      setShowModal(false)
+      await refreshRecipes()
     } catch (e: any) { alert(e.response?.data?.detail || 'エラー') }
-    finally { setLoading(false) }
+    finally { setSaveLoading(false) }
   }
 
   const remove = async (r: Recipe) => {
     if (!confirm(`「${r.name}」を削除しますか？`)) return
-    clearCache('dashboard_summary'); clearCache('dashboard_ranking'); clearCache('dashboard_breakdown')
-    await recipeApi.delete(r.id); load()
+    await recipeApi.delete(r.id)
+    await refreshRecipes()
   }
 
   return (
@@ -130,8 +149,15 @@ export default function RecipesPage() {
             )}
           </div>
         ))}
-        {recipes.length === 0 && (
-          <div className="col-span-2 py-16 text-center text-gray-500">レシピが登録されていません</div>
+        {loading && allRecipes.length === 0 && (
+          <div className="col-span-2 py-16 flex justify-center">
+            <div className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+          </div>
+        )}
+        {!loading && recipes.length === 0 && (
+          <div className="col-span-2 py-16 text-center text-gray-500">
+            {category ? `「${category}」のレシピがありません` : 'レシピが登録されていません'}
+          </div>
         )}
       </div>
 
@@ -165,7 +191,7 @@ export default function RecipesPage() {
               <div>
                 <div className="flex items-center gap-1 mb-1">
                   <label className="text-xs text-gray-400">目標原価率（%）</label>
-                  <span title="食材費を売価の何%以内に抑えるかの目標。例：売価1000円で原価率30%なら食材費300円以内。空欄の場合は店舗設定の値を使用。" className="text-gray-600 cursor-help text-xs">?</span>
+                  <span title="食材費を売価の何%以内に抑えるかの目標。空欄の場合は店舗設定の値を使用。" className="text-gray-600 cursor-help text-xs">?</span>
                 </div>
                 <input type="number" min="1" max="100" value={form.target_cost_rate} onChange={e => setForm(f => ({ ...f, target_cost_rate: e.target.value }))}
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500" placeholder="例: 30（空欄=店舗設定）" />
@@ -182,19 +208,17 @@ export default function RecipesPage() {
                   const ing = allIngredients.find(x => x.id === row.ingredient_id)
                   return (
                     <div key={i} className="space-y-1.5 bg-gray-800/40 rounded-xl p-2.5 border border-gray-700/50">
-                      {/* 食材選択 */}
                       <select value={row.ingredient_id} onChange={e => setSelIngredients(s => s.map((r, j) => j === i ? { ...r, ingredient_id: e.target.value } : r))}
                         className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-orange-500">
                         <option value="">食材を選択してください</option>
                         {allIngredients.map(ing => <option key={ing.id} value={ing.id}>{ing.name}（{ing.unit}単位 ¥{ing.unit_price}/{ing.unit}）</option>)}
                       </select>
-                      {/* 数量 & 歩留まり */}
                       <div className="grid grid-cols-2 gap-2">
                         <div>
                           <label className="block text-[10px] text-gray-500 mb-1">
                             使用量{ing ? <span className="text-orange-400 ml-1">（{ing.unit}）</span> : <span className="text-gray-600 ml-1">（食材を選ぶと単位が表示）</span>}
                           </label>
-                          <input type="number" min="0" placeholder={ing ? `例: 100` : '—'} value={row.quantity}
+                          <input type="number" min="0" placeholder={ing ? '例: 100' : '—'} value={row.quantity}
                             disabled={!ing}
                             onChange={e => setSelIngredients(s => s.map((r, j) => j === i ? { ...r, quantity: e.target.value } : r))}
                             className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-orange-500 disabled:opacity-40 disabled:cursor-not-allowed" />
@@ -209,7 +233,6 @@ export default function RecipesPage() {
                             className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-orange-500" />
                         </div>
                       </div>
-                      {/* コスト計算プレビュー */}
                       {ing && row.quantity && (
                         <div className="text-[10px] text-gray-500 bg-gray-900/60 rounded px-2 py-1">
                           食材費: ¥{(ing.unit_price * Number(row.quantity) / (Number(row.yield_rate || 100) / 100)).toFixed(1)}
@@ -224,8 +247,8 @@ export default function RecipesPage() {
 
             <div className="flex gap-2 pt-2">
               <button onClick={() => setShowModal(false)} className="flex-1 bg-gray-800 hover:bg-gray-700 text-sm py-2 rounded-lg">キャンセル</button>
-              <button onClick={save} disabled={loading} className="flex-1 bg-orange-500 hover:bg-orange-600 text-white text-sm py-2 rounded-lg disabled:opacity-50">
-                {loading ? '保存中...' : '保存'}
+              <button onClick={save} disabled={saveLoading} className="flex-1 bg-orange-500 hover:bg-orange-600 text-white text-sm py-2 rounded-lg disabled:opacity-50">
+                {saveLoading ? '保存中...' : '保存'}
               </button>
             </div>
           </div>

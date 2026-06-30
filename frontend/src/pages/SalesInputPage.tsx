@@ -3,20 +3,22 @@ import { recipeApi } from '../api/recipes'
 import { salesApi } from '../api/sales'
 import { Recipe, DailySales } from '../types'
 import { Save, CheckCircle } from 'lucide-react'
+import { useCachedFetch } from '../hooks/useCachedFetch'
 
 export default function SalesInputPage() {
-  const [recipes, setRecipes] = useState<Recipe[]>([])
+  // キャッシュ済みのアクティブレシピを即座に表示
+  const { data: recipesData } = useCachedFetch('recipes_active', () => recipeApi.list({ active_only: true }))
+  const recipes: Recipe[] = (recipesData as Recipe[] | null) ?? []
+
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
   const [quantities, setQuantities] = useState<Record<string, number>>({})
   const [saved, setSaved] = useState(false)
   const [loading, setLoading] = useState(false)
 
-  useEffect(() => { recipeApi.list({ active_only: true }).then(setRecipes) }, [])
-
   useEffect(() => {
     salesApi.getDaily(date).then(data => {
       const q: Record<string, number> = {}
-      data.forEach(d => { q[d.recipe_id] = d.quantity })
+      data.forEach((d: DailySales) => { q[d.recipe_id] = d.quantity })
       setQuantities(q)
     })
   }, [date])
@@ -64,7 +66,11 @@ export default function SalesInputPage() {
           <span className="text-right">売価</span>
           <span className="text-right">販売数</span>
         </div>
-        {recipes.map(r => (
+        {recipes.length === 0 ? (
+          <div className="px-4 py-12 text-center text-gray-500 text-sm">
+            メニューが読み込まれていません
+          </div>
+        ) : recipes.map(r => (
           <div key={r.id} className="grid grid-cols-3 items-center px-4 py-3 border-b border-gray-800/50 hover:bg-gray-800/20">
             <div>
               <div className="text-sm font-medium">{r.name}</div>

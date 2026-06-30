@@ -6,12 +6,13 @@
  *
  * - キャッシュがあれば loading=false で即座にデータ表示
  * - 裏でAPIを叩いてデータを更新
+ * - cacheKey が変わったとき（例: 期間切り替え）も新しいキャッシュを即座に反映
  */
 import { useState, useEffect, useRef } from 'react'
 import { getCached, setCached } from '../api/cache'
 
 interface Options {
-  enabled?: boolean // false にすると取得しない
+  enabled?: boolean
 }
 
 export function useCachedFetch<T>(
@@ -20,11 +21,10 @@ export function useCachedFetch<T>(
   options: Options = {}
 ) {
   const { enabled = true } = options
-  const cached = getCached<T>(cacheKey)
 
-  const [data, setData] = useState<T | null>(cached)
-  const [loading, setLoading] = useState<boolean>(cached === null)
-  const [error, setError] = useState<Error | null>(null)
+  // cacheKey が変わるたびに最新キャッシュを即反映するため関数初期化
+  const [data, setData] = useState<T | null>(() => getCached<T>(cacheKey))
+  const [loading, setLoading] = useState<boolean>(() => getCached<T>(cacheKey) === null)
   const isMounted = useRef(true)
 
   useEffect(() => {
@@ -35,8 +35,14 @@ export function useCachedFetch<T>(
   useEffect(() => {
     if (!enabled) return
 
-    // キャッシュがなければローディング表示
-    if (cached === null) setLoading(true)
+    // キー変更時: 新しいキーのキャッシュがあれば即表示、なければローディング
+    const cached = getCached<T>(cacheKey)
+    if (cached !== null) {
+      setData(cached)
+      setLoading(false)
+    } else {
+      setLoading(true)
+    }
 
     fetcher()
       .then((fresh) => {
@@ -45,13 +51,12 @@ export function useCachedFetch<T>(
         setData(fresh)
         setLoading(false)
       })
-      .catch((err) => {
+      .catch(() => {
         if (!isMounted.current) return
-        setError(err)
         setLoading(false)
       })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cacheKey, enabled])
 
-  return { data, loading, error }
+  return { data, loading }
 }
