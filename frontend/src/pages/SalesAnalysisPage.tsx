@@ -190,8 +190,8 @@ export default function SalesAnalysisPage() {
               <h3 className="text-sm font-semibold text-gray-300">気温×販売数 相関</h3>
               <select value={selectedRecipe} onChange={e => setSelectedRecipe(e.target.value)}
                 className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-orange-500">
-                <option value="">メニューを選択</option>
-                {recipes.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                <option className="bg-gray-800 text-white" value="">メニューを選択</option>
+                {recipes.map(r => <option className="bg-gray-800 text-white" key={r.id} value={r.id}>{r.name}</option>)}
               </select>
             </div>
             {correlation.length > 0 ? (

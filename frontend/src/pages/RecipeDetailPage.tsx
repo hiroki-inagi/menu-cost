@@ -144,7 +144,7 @@ export default function RecipeDetailPage() {
                 <div key={ri.id} className="border border-orange-500/50 rounded-lg p-2 space-y-2">
                   <select value={editIng.ingredient_id} onChange={e => setEditIng(n => ({ ...n, ingredient_id: e.target.value }))}
                     className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-orange-500">
-                    {allIngredients.map(i => <option key={i.id} value={i.id}>{i.name}（/{i.unit}）</option>)}
+                    {allIngredients.map(i => <option className="bg-gray-800 text-white" key={i.id} value={i.id}>{i.name}（/{i.unit}）</option>)}
                   </select>
                   <div className="grid grid-cols-2 gap-2">
                     <input type="number" placeholder="使用量" value={editIng.quantity} onChange={e => setEditIng(n => ({ ...n, quantity: e.target.value }))}
@@ -177,8 +177,8 @@ export default function RecipeDetailPage() {
             <div className="mt-3 pt-3 border-t border-gray-800 space-y-2">
               <select value={newIng.ingredient_id} onChange={e => setNewIng(n => ({ ...n, ingredient_id: e.target.value }))}
                 className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-orange-500">
-                <option value="">食材を選択</option>
-                {allIngredients.map(i => <option key={i.id} value={i.id}>{i.name}（/{i.unit}）</option>)}
+                <option className="bg-gray-800 text-white" value="">食材を選択</option>
+                {allIngredients.map(i => <option className="bg-gray-800 text-white" key={i.id} value={i.id}>{i.name}（/{i.unit}）</option>)}
               </select>
               <div className="grid grid-cols-2 gap-2">
                 <input type="number" placeholder="使用量" value={newIng.quantity} onChange={e => setNewIng(n => ({ ...n, quantity: e.target.value }))}

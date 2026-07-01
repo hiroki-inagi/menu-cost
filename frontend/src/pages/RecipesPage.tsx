@@ -174,8 +174,8 @@ export default function RecipesPage() {
                 <label className="block text-xs text-gray-400 mb-1">カテゴリ</label>
                 <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500">
-                  <option value="">— 選択 —</option>
-                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  <option className="bg-gray-800 text-white" value="">— 選択 —</option>
+                  {CATEGORIES.map(c => <option className="bg-gray-800 text-white" key={c} value={c}>{c}</option>)}
                 </select>
               </div>
               <div>
@@ -210,8 +210,8 @@ export default function RecipesPage() {
                     <div key={i} className="space-y-1.5 bg-gray-800/40 rounded-xl p-2.5 border border-gray-700/50">
                       <select value={row.ingredient_id} onChange={e => setSelIngredients(s => s.map((r, j) => j === i ? { ...r, ingredient_id: e.target.value } : r))}
                         className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-orange-500">
-                        <option value="">食材を選択してください</option>
-                        {allIngredients.map(ing => <option key={ing.id} value={ing.id}>{ing.name}（{ing.unit}単位 ¥{ing.unit_price}/{ing.unit}）</option>)}
+                        <option className="bg-gray-800 text-white" value="">食材を選択してください</option>
+                        {allIngredients.map(ing => <option className="bg-gray-800 text-white" key={ing.id} value={ing.id}>{ing.name}（{ing.unit}単位 ¥{ing.unit_price}/{ing.unit}）</option>)}
                       </select>
                       <div className="grid grid-cols-2 gap-2">
                         <div>

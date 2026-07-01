@@ -115,8 +115,8 @@ export default function IngredientsPage() {
         </div>
         <select value={category} onChange={e => setCategory(e.target.value)}
           className="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500">
-          <option value="">すべてのカテゴリ</option>
-          {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+          <option className="bg-gray-900 text-white" value="">すべてのカテゴリ</option>
+          {CATEGORIES.map(c => <option className="bg-gray-900 text-white" key={c} value={c}>{c}</option>)}
         </select>
         <button onClick={() => { const url = '/api/export/ingredients.csv'; window.open(url) }}
           className="text-sm text-gray-400 hover:text-gray-200 px-3 py-2 border border-gray-700 rounded-lg">CSV出力</button>
@@ -247,8 +247,8 @@ export default function IngredientsPage() {
                 <label className="block text-xs text-gray-400 mb-1">カテゴリ</label>
                 <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500">
-                  <option value="">— 選択 —</option>
-                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  <option className="bg-gray-800 text-white" value="">— 選択 —</option>
+                  {CATEGORIES.map(c => <option className="bg-gray-800 text-white" key={c} value={c}>{c}</option>)}
                 </select>
               </div>
 
@@ -256,8 +256,8 @@ export default function IngredientsPage() {
                 <label className="block text-xs text-gray-400 mb-1">仕入れ先</label>
                 <select value={form.supplier_id} onChange={e => setForm(f => ({ ...f, supplier_id: e.target.value }))}
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500">
-                  <option value="">— 選択なし —</option>
-                  {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  <option className="bg-gray-800 text-white" value="">— 選択なし —</option>
+                  {suppliers.map(s => <option className="bg-gray-800 text-white" key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               </div>
 
