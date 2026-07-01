@@ -7,7 +7,7 @@ services:
     rootDir: backend
     envVars:
       - key: DATABASE_URL
-        value: postgresql://postgres.momrbtvlxjycksvambpx:P3wzKjnw2m9cHeoS@aws-1-ap-northeast-1.pooler.supabase.com:5432/postgres
+        sync: false
       - key: SECRET_KEY
         generateValue: true
       - key: OPENWEATHERMAP_API_KEY
