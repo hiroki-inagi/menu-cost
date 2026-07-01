@@ -10,6 +10,8 @@ export const recipeApi = {
   delete: (id: string) => api.delete(`/recipes/${id}`).then(r => r.data),
   addIngredient: (id: string, data: { ingredient_id: string; quantity: number; yield_rate: number }) =>
     api.post<Recipe>(`/recipes/${id}/ingredients`, data).then(r => r.data),
+  updateIngredient: (id: string, riId: string, data: Partial<{ ingredient_id: string; quantity: number; yield_rate: number }>) =>
+    api.put<Recipe>(`/recipes/${id}/ingredients/${riId}`, data).then(r => r.data),
   removeIngredient: (id: string, riId: string) =>
     api.delete<Recipe>(`/recipes/${id}/ingredients/${riId}`).then(r => r.data),
 }

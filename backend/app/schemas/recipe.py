@@ -8,6 +8,11 @@ class RecipeIngredientCreate(BaseModel):
     quantity: float
     yield_rate: float = 1.0
 
+class RecipeIngredientUpdate(BaseModel):
+    ingredient_id: Optional[uuid.UUID] = None
+    quantity: Optional[float] = None
+    yield_rate: Optional[float] = None
+
 class RecipeIngredientResponse(BaseModel):
     id: uuid.UUID
     ingredient_id: uuid.UUID

@@ -5,7 +5,7 @@ from app.database import get_db
 from app.models.store import Store
 from app.models.ingredient import Ingredient
 from app.models.recipe import Recipe, RecipeIngredient
-from app.schemas.recipe import RecipeCreate, RecipeUpdate, RecipeResponse, RecipeIngredientCreate, CostCalculation
+from app.schemas.recipe import RecipeCreate, RecipeUpdate, RecipeResponse, RecipeIngredientCreate, RecipeIngredientUpdate, CostCalculation
 from app.services.cost_calculator import calculate_recipe_cost, build_recipe_ingredient_responses
 from app.routers.deps import get_current_store
 import uuid
@@ -103,6 +103,22 @@ def add_ingredient(recipe_id: uuid.UUID, payload: RecipeIngredientCreate, store:
     if not ing:
         raise HTTPException(400, "食材が見つかりません")
     db.add(RecipeIngredient(recipe_id=recipe.id, ingredient_id=payload.ingredient_id, quantity=payload.quantity, yield_rate=payload.yield_rate))
+    db.commit()
+    return _to_response(_load_recipe(db, recipe_id, store.id), store)
+
+@router.put("/{recipe_id}/ingredients/{ri_id}", response_model=RecipeResponse)
+def update_ingredient(recipe_id: uuid.UUID, ri_id: uuid.UUID, payload: RecipeIngredientUpdate, store: Store = Depends(get_current_store), db: Session = Depends(get_db)):
+    _load_recipe(db, recipe_id, store.id)
+    ri = db.query(RecipeIngredient).filter(RecipeIngredient.id == ri_id, RecipeIngredient.recipe_id == recipe_id).first()
+    if not ri:
+        raise HTTPException(404, "Not found")
+    data = payload.model_dump(exclude_unset=True)
+    if "ingredient_id" in data:
+        ing = db.query(Ingredient).filter(Ingredient.id == data["ingredient_id"], Ingredient.store_id == store.id).first()
+        if not ing:
+            raise HTTPException(400, "食材が見つかりません")
+    for k, v in data.items():
+        setattr(ri, k, v)
     db.commit()
     return _to_response(_load_recipe(db, recipe_id, store.id), store)
 

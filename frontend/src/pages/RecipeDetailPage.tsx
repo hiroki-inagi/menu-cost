@@ -15,6 +15,8 @@ export default function RecipeDetailPage() {
   const [newPrice, setNewPrice] = useState('')
   const [addingIng, setAddingIng] = useState(false)
   const [newIng, setNewIng] = useState({ ingredient_id: '', quantity: '', yield_rate: '1' })
+  const [editingRiId, setEditingRiId] = useState<string | null>(null)
+  const [editIng, setEditIng] = useState({ ingredient_id: '', quantity: '', yield_rate: '1' })
 
   const load = () => recipeApi.get(id!).then(setRecipe)
   useEffect(() => { load(); ingredientApi.list().then(setAllIngredients) }, [id])
@@ -32,6 +34,22 @@ export default function RecipeDetailPage() {
     if (!newIng.ingredient_id || !newIng.quantity) return
     await recipeApi.addIngredient(id!, { ingredient_id: newIng.ingredient_id, quantity: Number(newIng.quantity), yield_rate: Number(newIng.yield_rate) })
     setAddingIng(false); setNewIng({ ingredient_id: '', quantity: '', yield_rate: '1' }); load()
+  }
+
+  const startEditIng = (ri: Recipe['recipe_ingredients'][number]) => {
+    setAddingIng(false)
+    setEditingRiId(ri.id)
+    setEditIng({ ingredient_id: ri.ingredient_id, quantity: String(ri.quantity), yield_rate: String(ri.yield_rate) })
+  }
+
+  const saveEditIng = async () => {
+    if (!editingRiId || !editIng.ingredient_id || !editIng.quantity) return
+    await recipeApi.updateIngredient(id!, editingRiId, {
+      ingredient_id: editIng.ingredient_id,
+      quantity: Number(editIng.quantity),
+      yield_rate: Number(editIng.yield_rate),
+    })
+    setEditingRiId(null); load()
   }
 
   if (!recipe) return <div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" /></div>
@@ -116,22 +134,43 @@ export default function RecipeDetailPage() {
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-semibold text-sm text-gray-300">食材内訳</h2>
-            <button onClick={() => setAddingIng(true)} className="flex items-center gap-1 text-xs text-orange-500 hover:underline">
+            <button onClick={() => { setEditingRiId(null); setAddingIng(true) }} className="flex items-center gap-1 text-xs text-orange-500 hover:underline">
               <Plus className="w-3.5 h-3.5" /> 追加
             </button>
           </div>
           <div className="space-y-2">
             {recipe.recipe_ingredients.map(ri => (
-              <div key={ri.id} className="flex items-center justify-between text-sm">
-                <div className="flex-1 min-w-0">
-                  <span className="font-medium">{ri.ingredient_name}</span>
-                  <span className="text-gray-500 ml-2 text-xs">{ri.quantity}{ri.unit}{ri.yield_rate < 1 ? ` × 歩留${(ri.yield_rate * 100).toFixed(0)}%` : ''}</span>
+              editingRiId === ri.id ? (
+                <div key={ri.id} className="border border-orange-500/50 rounded-lg p-2 space-y-2">
+                  <select value={editIng.ingredient_id} onChange={e => setEditIng(n => ({ ...n, ingredient_id: e.target.value }))}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-orange-500">
+                    {allIngredients.map(i => <option key={i.id} value={i.id}>{i.name}（/{i.unit}）</option>)}
+                  </select>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input type="number" placeholder="使用量" value={editIng.quantity} onChange={e => setEditIng(n => ({ ...n, quantity: e.target.value }))}
+                      autoFocus
+                      className="bg-gray-800 border border-gray-700 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-orange-500" />
+                    <input type="number" placeholder="歩留まり率 (0〜1)" value={editIng.yield_rate} onChange={e => setEditIng(n => ({ ...n, yield_rate: e.target.value }))}
+                      className="bg-gray-800 border border-gray-700 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-orange-500" />
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => setEditingRiId(null)} className="flex-1 bg-gray-800 text-xs py-1.5 rounded-lg">キャンセル</button>
+                    <button onClick={saveEditIng} className="flex-1 bg-orange-500 text-white text-xs py-1.5 rounded-lg">保存</button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3 shrink-0">
-                  <span className="font-mono text-xs text-gray-400">¥{ri.cost.toLocaleString()}</span>
-                  <button onClick={() => removeIng(ri.id)}><Trash2 className="w-3.5 h-3.5 text-gray-600 hover:text-red-400" /></button>
+              ) : (
+                <div key={ri.id} className="flex items-center justify-between text-sm">
+                  <div className="flex-1 min-w-0">
+                    <span className="font-medium">{ri.ingredient_name}</span>
+                    <span className="text-gray-500 ml-2 text-xs">{ri.quantity}{ri.unit}{ri.yield_rate < 1 ? ` × 歩留${(ri.yield_rate * 100).toFixed(0)}%` : ''}</span>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className="font-mono text-xs text-gray-400">¥{ri.cost.toLocaleString()}</span>
+                    <button onClick={() => startEditIng(ri)}><Pencil className="w-3.5 h-3.5 text-gray-600 hover:text-orange-400" /></button>
+                    <button onClick={() => removeIng(ri.id)}><Trash2 className="w-3.5 h-3.5 text-gray-600 hover:text-red-400" /></button>
+                  </div>
                 </div>
-              </div>
+              )
             ))}
           </div>
           {addingIng && (
