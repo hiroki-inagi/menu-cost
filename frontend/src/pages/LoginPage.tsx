@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { authApi } from '../api/auth'
 import { User } from '../types'
@@ -9,20 +9,43 @@ export default function LoginPage({ onLogin }: { onLogin: (u: User) => void }) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [waking, setWaking] = useState(false)
   const navigate = useNavigate()
+
+  // ページ表示時にサーバーを起こしておく(Renderコールドスタート対策)
+  useEffect(() => {
+    setWaking(true)
+    authApi.ping().catch(() => {}).finally(() => setWaking(false))
+  }, [])
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true); setError('')
-    try {
-      const { access_token } = await authApi.login(email, password)
-      localStorage.setItem('token', access_token)
-      const user = await authApi.me()
-      onLogin(user)
-      navigate('/')
-    } catch {
-      setError('メールアドレスまたはパスワードが正しくありません')
-    } finally { setLoading(false) }
+    const maxAttempts = 3
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const { access_token } = await authApi.login(email, password)
+        localStorage.setItem('token', access_token)
+        const user = await authApi.me()
+        onLogin(user)
+        navigate('/')
+        return
+      } catch (err: any) {
+        if (err?.response?.status === 401) {
+          // 認証エラー(ID/PW間違い)のみ即失敗にする
+          setError('メールアドレスまたはパスワードが正しくありません')
+          break
+        }
+        // タイムアウトや接続エラーはサーバー起動中の可能性 → 自動リトライ
+        if (attempt < maxAttempts) {
+          setError('サーバー起動中です。そのままお待ちください…')
+          await new Promise(r => setTimeout(r, 3000))
+        } else {
+          setError('サーバーに接続できませんでした。時間をおいて再度お試しください')
+        }
+      }
+    }
+    setLoading(false)
   }
 
   return (
@@ -48,6 +71,7 @@ export default function LoginPage({ onLogin }: { onLogin: (u: User) => void }) {
               <input type="password" value={password} onChange={e => setPassword(e.target.value)} required
                 className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500" />
             </div>
+            {waking && <p className="text-gray-500 text-xs">サーバーに接続しています…</p>}
             {error && <p className="text-red-400 text-sm">{error}</p>}
             <button type="submit" disabled={loading}
               className="w-full bg-orange-500 hover:bg-orange-600 text-white font-medium py-2 rounded-lg transition-colors disabled:opacity-50">

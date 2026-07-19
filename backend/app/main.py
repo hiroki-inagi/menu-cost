@@ -41,4 +41,9 @@ def root():
 def health():
     return {"status": "healthy"}
 
+@app.get("/api/health")
+def api_health():
+    """フロントエンドからのウォームアップ(コールドスタート対策)用"""
+    return {"status": "healthy"}
+
 

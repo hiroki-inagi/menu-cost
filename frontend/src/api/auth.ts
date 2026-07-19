@@ -13,4 +13,6 @@ export const authApi = {
     }).then(r => r.data)
   },
   me: () => api.get<User>('/auth/me').then(r => r.data),
+  // サーバーのウォームアップ用(Renderコールドスタート対策)
+  ping: () => api.get('/health').then(r => r.data),
 }
