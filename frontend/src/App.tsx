@@ -5,6 +5,8 @@ import { User } from './types'
 import Layout from './components/layout/Layout'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
+import ForgotPasswordPage from './pages/ForgotPasswordPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 import DashboardPage from './pages/DashboardPage'
 import IngredientsPage from './pages/IngredientsPage'
 import RecipesPage from './pages/RecipesPage'
@@ -41,6 +43,8 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<LoginPage onLogin={setUser} />} />
         <Route path="/register" element={<RegisterPage onRegister={setUser} />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/" element={
           <PrivateRoute user={user}>
             <Layout user={user!} onLogout={() => { localStorage.removeItem('token'); setUser(null) }} />

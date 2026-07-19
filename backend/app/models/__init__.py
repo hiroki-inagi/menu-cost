@@ -6,3 +6,4 @@ from app.models.price_history import PriceHistory
 from app.models.recipe import Recipe, RecipeIngredient
 from app.models.daily_sales import DailySales
 from app.models.weather_log import WeatherLog
+from app.models.password_reset import PasswordResetToken

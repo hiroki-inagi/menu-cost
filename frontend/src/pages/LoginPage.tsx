@@ -67,7 +67,12 @@ export default function LoginPage({ onLogin }: { onLogin: (u: User) => void }) {
                 className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500" />
             </div>
             <div>
-              <label className="block text-sm text-gray-400 mb-1">パスワード</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-sm text-gray-400">パスワード</label>
+                <Link to="/forgot-password" className="text-xs text-gray-500 hover:text-orange-500 transition-colors">
+                  お忘れですか？
+                </Link>
+              </div>
               <input type="password" value={password} onChange={e => setPassword(e.target.value)} required
                 className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500" />
             </div>

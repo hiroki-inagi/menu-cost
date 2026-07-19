@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { storeApi, StoreMember } from '../api/store'
 import { authApi } from '../api/auth'
 import { Store } from '../types'
-import { Save, CheckCircle, Eye, EyeOff, Key, MapPin, Locate, Users, Copy, RefreshCw, Trash2 } from 'lucide-react'
+import { Save, CheckCircle, Eye, EyeOff, Key, MapPin, Locate, Users, Copy, RefreshCw, Trash2, Lock } from 'lucide-react'
 
 export default function SettingsPage() {
   const [store, setStore] = useState<Store | null>(null)
@@ -36,6 +36,27 @@ export default function SettingsPage() {
     await navigator.clipboard.writeText(inviteCode)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  // パスワード変更
+  const [pw, setPw] = useState({ current: '', next: '', confirm: '' })
+  const [pwError, setPwError] = useState('')
+  const [pwSaved, setPwSaved] = useState(false)
+  const [pwLoading, setPwLoading] = useState(false)
+
+  const changePassword = async () => {
+    setPwError('')
+    if (pw.next.length < 8) { setPwError('新しいパスワードは8文字以上にしてください'); return }
+    if (pw.next !== pw.confirm) { setPwError('新しいパスワードが一致しません'); return }
+    setPwLoading(true)
+    try {
+      await authApi.changePassword(pw.current, pw.next)
+      setPw({ current: '', next: '', confirm: '' })
+      setPwSaved(true)
+      setTimeout(() => setPwSaved(false), 3000)
+    } catch (e: any) {
+      setPwError(e.response?.data?.detail || 'パスワードの変更に失敗しました')
+    } finally { setPwLoading(false) }
   }
 
   // 削除確認モーダルの対象メンバー（nullなら非表示）
@@ -171,6 +192,34 @@ export default function SettingsPage() {
         <button onClick={save} disabled={loading}
           className="w-full flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-medium py-2 rounded-lg transition-colors disabled:opacity-50">
           {saved ? <><CheckCircle className="w-4 h-4" /> 保存しました</> : <><Save className="w-4 h-4" />{loading ? '保存中...' : '設定を保存'}</>}
+        </button>
+      </div>
+
+      {/* パスワード変更 */}
+      <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-4">
+        <div className="flex items-center gap-2">
+          <Lock className="w-4 h-4 text-blue-400" />
+          <h3 className="font-semibold text-gray-300 text-sm">パスワードの変更</h3>
+        </div>
+
+        {[
+          { key: 'current', label: '現在のパスワード' },
+          { key: 'next', label: '新しいパスワード（8文字以上）' },
+          { key: 'confirm', label: '新しいパスワード（確認）' },
+        ].map(({ key, label }) => (
+          <div key={key}>
+            <label className="block text-xs text-gray-400 mb-1">{label}</label>
+            <input type="password" value={(pw as any)[key]} autoComplete="new-password"
+              onChange={e => setPw(p => ({ ...p, [key]: e.target.value }))}
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500" />
+          </div>
+        ))}
+
+        {pwError && <p className="text-red-400 text-xs">{pwError}</p>}
+
+        <button onClick={changePassword} disabled={pwLoading || !pw.current || !pw.next}
+          className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-sm font-medium py-2 rounded-lg transition-colors">
+          {pwSaved ? <><CheckCircle className="w-4 h-4" /> 変更しました</> : pwLoading ? '変更中...' : 'パスワードを変更'}
         </button>
       </div>
 
