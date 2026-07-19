@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { storeApi, StoreMember } from '../api/store'
 import { authApi } from '../api/auth'
 import { Store } from '../types'
-import { Save, CheckCircle, Eye, EyeOff, Key, MapPin, Locate, Users, Copy, RefreshCw } from 'lucide-react'
+import { Save, CheckCircle, Eye, EyeOff, Key, MapPin, Locate, Users, Copy, RefreshCw, Trash2 } from 'lucide-react'
 
 export default function SettingsPage() {
   const [store, setStore] = useState<Store | null>(null)
@@ -36,6 +36,22 @@ export default function SettingsPage() {
     await navigator.clipboard.writeText(inviteCode)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  // 削除確認モーダルの対象メンバー（nullなら非表示）
+  const [removeTarget, setRemoveTarget] = useState<StoreMember | null>(null)
+  const [removing, setRemoving] = useState(false)
+
+  const doRemoveMember = async (mode: 'remove' | 'delete') => {
+    if (!removeTarget) return
+    setRemoving(true)
+    try {
+      await storeApi.removeMember(removeTarget.id, mode)
+      setMembers(ms => ms.filter(m => m.id !== removeTarget.id))
+      setRemoveTarget(null)
+    } catch (e: any) {
+      alert(e.response?.data?.detail || '削除に失敗しました')
+    } finally { setRemoving(false) }
   }
 
   const regenerateCode = async () => {
@@ -205,12 +221,56 @@ export default function SettingsPage() {
                   }`}>
                     {m.role === 'owner' ? 'オーナー' : 'スタッフ'}
                   </span>
+                  {/* 削除はオーナーのみ・スタッフに対してのみ表示 */}
+                  {myRole === 'owner' && m.role !== 'owner' && (
+                    <button onClick={() => setRemoveTarget(m)} title="このメンバーを削除"
+                      className="text-gray-600 hover:text-red-400 transition-colors">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>
           </div>
         )}
       </div>
+
+      {/* メンバー削除の確認モーダル */}
+      {removeTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => !removing && setRemoveTarget(null)}>
+          <div className="w-full max-w-md bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-4"
+            onClick={e => e.stopPropagation()}>
+            <h3 className="font-semibold text-gray-200">
+              「{removeTarget.name}」を削除しますか？
+            </h3>
+            <p className="text-xs text-gray-500">{removeTarget.email}</p>
+
+            <div className="space-y-2">
+              <button onClick={() => doRemoveMember('remove')} disabled={removing}
+                className="w-full text-left bg-gray-800 hover:bg-gray-700 border border-gray-700 hover:border-orange-600/60 rounded-lg p-3 transition-colors disabled:opacity-50">
+                <div className="text-sm font-medium text-gray-200">店舗から外す</div>
+                <div className="text-xs text-gray-500 mt-0.5">
+                  アカウントは残ります。データは見られなくなりますが、招待コードを渡せば再参加できます。
+                </div>
+              </button>
+
+              <button onClick={() => doRemoveMember('delete')} disabled={removing}
+                className="w-full text-left bg-gray-800 hover:bg-red-950/40 border border-gray-700 hover:border-red-700/60 rounded-lg p-3 transition-colors disabled:opacity-50">
+                <div className="text-sm font-medium text-red-400">アカウントごと完全に削除</div>
+                <div className="text-xs text-gray-500 mt-0.5">
+                  ログインできなくなります。元に戻せません。
+                </div>
+              </button>
+            </div>
+
+            <button onClick={() => setRemoveTarget(null)} disabled={removing}
+              className="w-full text-sm text-gray-500 hover:text-gray-300 py-1 transition-colors">
+              キャンセル
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 天気取得場所の設定 */}
       <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-4">

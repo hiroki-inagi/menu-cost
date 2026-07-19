@@ -1,3 +1,5 @@
+import uuid
+from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
@@ -77,6 +79,41 @@ def list_members(store: Store = Depends(get_current_store), db: Session = Depend
         }
         for u in users
     ]
+
+
+@router.delete("/members/{user_id}")
+def remove_member(
+    user_id: uuid.UUID,
+    mode: Literal["remove", "delete"] = "remove",
+    current_user: User = Depends(get_current_user),
+    store: Store = Depends(get_current_store),
+    db: Session = Depends(get_db),
+):
+    """メンバーを店舗から外す、またはアカウントごと削除する（オーナーのみ）。
+
+    mode="remove": store_id を外すだけ。アカウントは残り、招待コードで再参加できる。
+    mode="delete": users テーブルから完全に削除する。元に戻せない。
+    """
+    if current_user.role != UserRole.owner:
+        raise HTTPException(status_code=403, detail="メンバーの削除はオーナーのみ可能です")
+
+    target = db.query(User).filter(User.id == user_id, User.store_id == store.id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="メンバーが見つかりません")
+
+    if target.id == current_user.id:
+        raise HTTPException(status_code=400, detail="自分自身は削除できません")
+
+    if target.role == UserRole.owner:
+        raise HTTPException(status_code=400, detail="オーナーは削除できません")
+
+    if mode == "delete":
+        db.delete(target)
+    else:
+        target.store_id = None
+
+    db.commit()
+    return {"ok": True, "mode": mode}
 
 
 @router.get("/weather-api-key-status")

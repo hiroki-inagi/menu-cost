@@ -9,6 +9,9 @@ export const storeApi = {
   getInviteCode: () => api.get<{ invite_code: string; store_name: string }>('/store/invite-code').then(r => r.data),
   regenerateInviteCode: () => api.post<{ invite_code: string }>('/store/invite-code/regenerate').then(r => r.data),
   getMembers: () => api.get<StoreMember[]>('/store/members').then(r => r.data),
+  // mode='remove': 店舗から外すだけ / mode='delete': アカウントごと完全削除
+  removeMember: (userId: string, mode: 'remove' | 'delete') =>
+    api.delete(`/store/members/${userId}`, { params: { mode } }).then(r => r.data),
 }
 
 export interface StoreMember {
