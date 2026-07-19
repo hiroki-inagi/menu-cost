@@ -10,6 +10,7 @@ class Store(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String, nullable=False)
+    invite_code = Column(String(12), unique=True, index=True, nullable=True)
     default_cost_rate = Column(Numeric(5, 4), nullable=False, default=0.30)
     tax_rate = Column(Numeric(5, 4), nullable=False, default=0.10)
     rounding_unit = Column(Integer, nullable=False, default=50)

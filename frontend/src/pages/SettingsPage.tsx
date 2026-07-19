@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { storeApi } from '../api/store'
+import { storeApi, StoreMember } from '../api/store'
+import { authApi } from '../api/auth'
 import { Store } from '../types'
-import { Save, CheckCircle, Eye, EyeOff, Key, MapPin, Locate } from 'lucide-react'
+import { Save, CheckCircle, Eye, EyeOff, Key, MapPin, Locate, Users, Copy, RefreshCw } from 'lucide-react'
 
 export default function SettingsPage() {
   const [store, setStore] = useState<Store | null>(null)
@@ -18,9 +19,33 @@ export default function SettingsPage() {
   const [apiKeySaved, setApiKeySaved] = useState(false)
   const [apiKeyLoading, setApiKeyLoading] = useState(false)
 
+  const [inviteCode, setInviteCode] = useState('')
+  const [members, setMembers] = useState<StoreMember[]>([])
+  const [myRole, setMyRole] = useState<string>('')
+  const [copied, setCopied] = useState(false)
+  const [regenerating, setRegenerating] = useState(false)
+
   useEffect(() => {
     storeApi.getWeatherApiKeyStatus().then(setApiKeyStatus).catch(() => {})
+    storeApi.getInviteCode().then(r => setInviteCode(r.invite_code)).catch(() => {})
+    storeApi.getMembers().then(setMembers).catch(() => {})
+    authApi.me().then(u => setMyRole(u.role)).catch(() => {})
   }, [])
+
+  const copyInviteCode = async () => {
+    await navigator.clipboard.writeText(inviteCode)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  const regenerateCode = async () => {
+    if (!confirm('招待コードを再発行すると、今のコードは使えなくなります。よろしいですか？')) return
+    setRegenerating(true)
+    try {
+      const r = await storeApi.regenerateInviteCode()
+      setInviteCode(r.invite_code)
+    } finally { setRegenerating(false) }
+  }
 
   const saveApiKey = async () => {
     if (!apiKey.trim()) return
@@ -131,6 +156,60 @@ export default function SettingsPage() {
           className="w-full flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-medium py-2 rounded-lg transition-colors disabled:opacity-50">
           {saved ? <><CheckCircle className="w-4 h-4" /> 保存しました</> : <><Save className="w-4 h-4" />{loading ? '保存中...' : '設定を保存'}</>}
         </button>
+      </div>
+
+      {/* メンバー共有（招待コード） */}
+      <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-4">
+        <div className="flex items-center gap-2">
+          <Users className="w-4 h-4 text-purple-400" />
+          <h3 className="font-semibold text-gray-300 text-sm">メンバーとデータを共有</h3>
+        </div>
+
+        <p className="text-xs text-gray-500 leading-relaxed">
+          下の招待コードを渡すと、相手は新規登録時に「店舗に参加する」からコードを入力するだけで、
+          この店舗の食材・レシピ・売上データをそのまま共有できます。
+        </p>
+
+        <div className="flex gap-2">
+          <div className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-center">
+            <span className="text-xl font-mono font-bold tracking-[0.3em] text-purple-300">
+              {inviteCode || '--------'}
+            </span>
+          </div>
+          <button onClick={copyInviteCode} disabled={!inviteCode}
+            className="flex items-center gap-1.5 bg-purple-600 hover:bg-purple-700 disabled:opacity-40 text-white text-sm px-4 rounded-lg transition-colors">
+            {copied ? <><CheckCircle className="w-4 h-4" /> コピー済</> : <><Copy className="w-4 h-4" /> コピー</>}
+          </button>
+        </div>
+
+        {myRole === 'owner' && (
+          <button onClick={regenerateCode} disabled={regenerating}
+            className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-300 disabled:opacity-50 transition-colors">
+            <RefreshCw className={`w-3.5 h-3.5 ${regenerating ? 'animate-spin' : ''}`} />
+            招待コードを再発行する
+          </button>
+        )}
+
+        {members.length > 0 && (
+          <div className="pt-2 border-t border-gray-800">
+            <p className="text-xs text-gray-400 font-medium mb-2">参加中のメンバー（{members.length}名）</p>
+            <ul className="space-y-1.5">
+              {members.map(m => (
+                <li key={m.id} className="flex items-center gap-2 text-sm">
+                  <span className="text-gray-300">{m.name}</span>
+                  <span className="text-xs text-gray-600">{m.email}</span>
+                  <span className={`ml-auto text-xs px-2 py-0.5 rounded-full border ${
+                    m.role === 'owner'
+                      ? 'bg-orange-900/30 border-orange-800/50 text-orange-400'
+                      : 'bg-gray-800 border-gray-700 text-gray-400'
+                  }`}>
+                    {m.role === 'owner' ? 'オーナー' : 'スタッフ'}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
 
       {/* 天気取得場所の設定 */}

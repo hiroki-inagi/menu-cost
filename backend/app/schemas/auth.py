@@ -7,7 +7,7 @@ class UserCreate(BaseModel):
     password: str
     name: str
     store_name: Optional[str] = None
-    invite_token: Optional[str] = None
+    invite_code: Optional[str] = None
 
 class UserLogin(BaseModel):
     email: EmailStr

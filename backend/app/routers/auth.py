@@ -6,18 +6,30 @@ from app.models.user import User
 from app.models.store import Store
 from app.auth.jwt import verify_password, get_password_hash, create_access_token
 from app.schemas.auth import UserCreate, Token, UserResponse
+from app.models.user import UserRole
 from app.routers.deps import get_current_user
+from app.services.invite_code import generate_unique_invite_code, normalize_invite_code
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 @router.post("/register", response_model=UserResponse)
 def register(payload: UserCreate, db: Session = Depends(get_db)):
     if db.query(User).filter(User.email == payload.email).first():
-        raise HTTPException(status_code=400, detail="Email already registered")
+        raise HTTPException(status_code=400, detail="このメールアドレスは既に登録されています")
 
     store = None
-    if payload.store_name:
-        store = Store(name=payload.store_name)
+    role = UserRole.owner
+
+    if payload.invite_code:
+        # 招待コードが入力された場合は既存店舗に参加する（データを共有）
+        code = normalize_invite_code(payload.invite_code)
+        store = db.query(Store).filter(Store.invite_code == code).first()
+        if not store:
+            raise HTTPException(status_code=404, detail="招待コードが見つかりません。コードをご確認ください")
+        role = UserRole.staff
+    elif payload.store_name:
+        # 新規店舗を作成する
+        store = Store(name=payload.store_name, invite_code=generate_unique_invite_code(db))
         db.add(store)
         db.flush()
 
@@ -25,6 +37,7 @@ def register(payload: UserCreate, db: Session = Depends(get_db)):
         email=payload.email,
         hashed_password=get_password_hash(payload.password),
         name=payload.name,
+        role=role,
         store_id=store.id if store else None,
     )
     db.add(user)
@@ -39,6 +52,14 @@ def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
     token = create_access_token({"sub": str(user.id)})
     return Token(access_token=token)
+
+@router.get("/invite-code/{code}")
+def lookup_invite_code(code: str, db: Session = Depends(get_db)):
+    """登録画面で招待コードを入力した際、参加先の店舗名を確認するための公開エンドポイント。"""
+    store = db.query(Store).filter(Store.invite_code == normalize_invite_code(code)).first()
+    if not store:
+        raise HTTPException(status_code=404, detail="招待コードが見つかりません")
+    return {"store_name": store.name}
 
 @router.get("/me", response_model=UserResponse)
 def me(current_user: User = Depends(get_current_user)):

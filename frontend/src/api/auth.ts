@@ -2,8 +2,11 @@ import api from './client'
 import { User } from '../types'
 
 export const authApi = {
-  register: (data: { email: string; password: string; name: string; store_name?: string }) =>
+  register: (data: { email: string; password: string; name: string; store_name?: string; invite_code?: string }) =>
     api.post<User>('/auth/register', data).then(r => r.data),
+  // 招待コードから参加先の店舗名を確認する(登録前のプレビュー用)
+  lookupInviteCode: (code: string) =>
+    api.get<{ store_name: string }>(`/auth/invite-code/${encodeURIComponent(code)}`).then(r => r.data),
   login: (email: string, password: string) => {
     const form = new URLSearchParams()
     form.append('username', email)
