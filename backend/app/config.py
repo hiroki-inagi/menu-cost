@@ -8,7 +8,8 @@ class Settings(BaseSettings):
     OPENWEATHERMAP_API_KEY: str = ""
 
     # --- パスワード再設定メール用のSMTP設定 ---
-    SMTP_HOST: str = ""
+    # 既定値はGmail。SMTP_USER と SMTP_PASSWORD（アプリパスワード）だけ設定すれば動く
+    SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 587
     SMTP_USER: str = ""
     SMTP_PASSWORD: str = ""

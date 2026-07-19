@@ -41,6 +41,35 @@ def send_email(to: str, subject: str, body: str) -> bool:
     return True
 
 
+def check_smtp_connection() -> tuple[bool, str]:
+    """SMTPへの接続とログインだけを試す（メールは送らない）。
+
+    設定画面の「接続テスト」から呼ぶ。よくある失敗は日本語で説明を返す。
+    """
+    if not settings.smtp_configured:
+        return False, "SMTPが未設定です。SMTP_USER と SMTP_PASSWORD を環境変数に設定してください"
+
+    try:
+        if settings.SMTP_USE_TLS:
+            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=15) as smtp:
+                smtp.starttls()
+                smtp.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+        else:
+            with smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, timeout=15) as smtp:
+                smtp.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+        return True, "接続に成功しました"
+
+    except smtplib.SMTPAuthenticationError:
+        return False, (
+            "認証に失敗しました。Gmailの場合は通常のパスワードではなく"
+            "「アプリパスワード」（16桁）が必要です。2段階認証を有効にしてから発行してください"
+        )
+    except (smtplib.SMTPConnectError, OSError) as e:
+        return False, f"サーバーに接続できません（ホスト/ポートをご確認ください）: {e}"
+    except Exception as e:
+        return False, f"接続に失敗しました: {e}"
+
+
 def send_password_reset_email(to: str, user_name: str, reset_url: str, expire_minutes: int) -> bool:
     subject = "【MenuCost】パスワード再設定のご案内"
     body = f"""{user_name} 様

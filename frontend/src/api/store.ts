@@ -12,6 +12,16 @@ export const storeApi = {
   // mode='remove': 店舗から外すだけ / mode='delete': アカウントごと完全削除
   removeMember: (userId: string, mode: 'remove' | 'delete') =>
     api.delete(`/store/members/${userId}`, { params: { mode } }).then(r => r.data),
+  // メール送信設定の確認とテスト送信
+  getMailStatus: () => api.get<MailStatus>('/store/mail-status').then(r => r.data),
+  sendTestMail: () => api.post<{ ok: boolean; sent_to: string }>('/store/mail-test').then(r => r.data),
+}
+
+export interface MailStatus {
+  configured: boolean
+  host: string
+  from_address: string
+  frontend_url: string
 }
 
 export interface StoreMember {

@@ -8,6 +8,8 @@ from app.models.store import Store
 from app.schemas.store import StoreSettingsUpdate, StoreResponse
 from app.routers.deps import get_current_user, get_current_store
 from app.services.invite_code import generate_unique_invite_code
+from app.services.mailer import check_smtp_connection, send_email
+from app.config import settings
 
 router = APIRouter(prefix="/api/store", tags=["store"])
 
@@ -114,6 +116,45 @@ def remove_member(
 
     db.commit()
     return {"ok": True, "mode": mode}
+
+
+@router.get("/mail-status")
+def mail_status(current_user: User = Depends(get_current_user)):
+    """メール送信の設定状況を返す（オーナーのみ）。"""
+    if current_user.role != UserRole.owner:
+        raise HTTPException(status_code=403, detail="オーナーのみ確認できます")
+    return {
+        "configured": settings.smtp_configured,
+        "host": settings.SMTP_HOST,
+        "from_address": settings.SMTP_FROM or settings.SMTP_USER,
+        "frontend_url": settings.FRONTEND_URL,
+    }
+
+
+@router.post("/mail-test")
+def mail_test(current_user: User = Depends(get_current_user)):
+    """自分宛にテストメールを送って設定を検証する（オーナーのみ）。"""
+    if current_user.role != UserRole.owner:
+        raise HTTPException(status_code=403, detail="オーナーのみ実行できます")
+
+    ok, message = check_smtp_connection()
+    if not ok:
+        raise HTTPException(status_code=400, detail=message)
+
+    try:
+        send_email(
+            to=current_user.email,
+            subject="【MenuCost】テストメール",
+            body=(
+                f"{current_user.name} 様\n\n"
+                "このメールが届いていれば、メール送信の設定は正常です。\n"
+                "パスワード再設定のリンクも同じ設定で送信されます。\n\n--\nMenuCost\n"
+            ),
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"送信に失敗しました: {e}")
+
+    return {"ok": True, "sent_to": current_user.email}
 
 
 @router.get("/weather-api-key-status")
