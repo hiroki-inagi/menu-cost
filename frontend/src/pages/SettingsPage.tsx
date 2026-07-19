@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { storeApi, StoreMember, MailStatus } from '../api/store'
+import { storeApi, StoreMember } from '../api/store'
 import { authApi } from '../api/auth'
 import { Store } from '../types'
-import { Save, CheckCircle, Eye, EyeOff, Key, MapPin, Locate, Users, Copy, RefreshCw, Trash2, Lock, Mail } from 'lucide-react'
+import { Save, CheckCircle, Eye, EyeOff, Key, MapPin, Locate, Users, Copy, RefreshCw, Trash2, Lock } from 'lucide-react'
 
 export default function SettingsPage() {
   const [store, setStore] = useState<Store | null>(null)
@@ -30,28 +30,12 @@ export default function SettingsPage() {
     storeApi.getInviteCode().then(r => setInviteCode(r.invite_code)).catch(() => {})
     storeApi.getMembers().then(setMembers).catch(() => {})
     authApi.me().then(u => setMyRole(u.role)).catch(() => {})
-    storeApi.getMailStatus().then(setMailStatus).catch(() => {})
   }, [])
 
   const copyInviteCode = async () => {
     await navigator.clipboard.writeText(inviteCode)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
-  }
-
-  // メール送信設定
-  const [mailStatus, setMailStatus] = useState<MailStatus | null>(null)
-  const [mailTesting, setMailTesting] = useState(false)
-  const [mailResult, setMailResult] = useState<{ ok: boolean; text: string } | null>(null)
-
-  const testMail = async () => {
-    setMailTesting(true); setMailResult(null)
-    try {
-      const r = await storeApi.sendTestMail()
-      setMailResult({ ok: true, text: `${r.sent_to} 宛にテストメールを送信しました` })
-    } catch (e: any) {
-      setMailResult({ ok: false, text: e.response?.data?.detail || '送信に失敗しました' })
-    } finally { setMailTesting(false) }
   }
 
   // パスワード変更
@@ -210,62 +194,6 @@ export default function SettingsPage() {
           {saved ? <><CheckCircle className="w-4 h-4" /> 保存しました</> : <><Save className="w-4 h-4" />{loading ? '保存中...' : '設定を保存'}</>}
         </button>
       </div>
-
-      {/* メール送信設定（オーナーのみ） */}
-      {myRole === 'owner' && mailStatus && (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-4">
-          <div className="flex items-center gap-2">
-            <Mail className="w-4 h-4 text-green-400" />
-            <h3 className="font-semibold text-gray-300 text-sm">メール送信設定</h3>
-            <span className={`ml-auto text-xs px-2 py-0.5 rounded-full border ${
-              mailStatus.configured
-                ? 'bg-green-900/40 border-green-800/50 text-green-400'
-                : 'bg-amber-900/30 border-amber-800/50 text-amber-400'
-            }`}>
-              {mailStatus.configured ? '✓ 設定済み' : '未設定'}
-            </span>
-          </div>
-
-          <p className="text-xs text-gray-500 leading-relaxed">
-            パスワード再設定のリンクを送るために使います。未設定の場合、再設定メールは届かず、
-            サーバーのログにリンクが出力されるだけになります。
-          </p>
-
-          <dl className="text-xs space-y-1">
-            <div className="flex gap-2">
-              <dt className="text-gray-500 w-20 shrink-0">送信サーバー</dt>
-              <dd className="text-gray-300 font-mono break-all">{mailStatus.host || '—'}</dd>
-            </div>
-            <div className="flex gap-2">
-              <dt className="text-gray-500 w-20 shrink-0">差出人</dt>
-              <dd className="text-gray-300 font-mono break-all">{mailStatus.from_address || '—'}</dd>
-            </div>
-            <div className="flex gap-2">
-              <dt className="text-gray-500 w-20 shrink-0">リンク先URL</dt>
-              <dd className="text-gray-300 font-mono break-all">{mailStatus.frontend_url}</dd>
-            </div>
-          </dl>
-
-          {mailStatus.frontend_url.includes('localhost') && (
-            <p className="text-xs text-amber-400">
-              ⚠ リンク先URLがlocalhostのままです。このままだとメールのリンクを開けません。
-              環境変数 FRONTEND_URL を公開URLに変更してください。
-            </p>
-          )}
-
-          <button onClick={testMail} disabled={mailTesting}
-            className="w-full flex items-center justify-center gap-2 bg-green-700 hover:bg-green-600 disabled:opacity-40 text-white text-sm font-medium py-2 rounded-lg transition-colors">
-            <Mail className="w-4 h-4" />
-            {mailTesting ? '送信中...' : '自分宛にテストメールを送る'}
-          </button>
-
-          {mailResult && (
-            <p className={`text-xs leading-relaxed ${mailResult.ok ? 'text-green-400' : 'text-red-400'}`}>
-              {mailResult.ok ? '✓ ' : '✗ '}{mailResult.text}
-            </p>
-          )}
-        </div>
-      )}
 
       {/* パスワード変更 */}
       <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-4">

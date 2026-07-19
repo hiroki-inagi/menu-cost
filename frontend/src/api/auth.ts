@@ -16,13 +16,6 @@ export const authApi = {
     }).then(r => r.data)
   },
   me: () => api.get<User>('/auth/me').then(r => r.data),
-  // パスワード再設定
-  forgotPassword: (email: string) =>
-    api.post<{ message: string }>('/auth/forgot-password', { email }).then(r => r.data),
-  verifyResetToken: (token: string) =>
-    api.get<{ valid: boolean; email: string }>('/auth/reset-password/verify', { params: { token } }).then(r => r.data),
-  resetPassword: (token: string, new_password: string) =>
-    api.post<{ message: string }>('/auth/reset-password', { token, new_password }).then(r => r.data),
   changePassword: (current_password: string, new_password: string) =>
     api.post<{ message: string }>('/auth/change-password', { current_password, new_password }).then(r => r.data),
   // サーバーのウォームアップ用(Renderコールドスタート対策)
