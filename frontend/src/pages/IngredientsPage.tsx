@@ -56,8 +56,7 @@ export default function IngredientsPage() {
   const refreshIngredients = async () => {
     const fresh = await ingredientApi.list()
     setCached('all_ingredients', fresh)
-    setCached('dashboard_summary', null as any) // ダッシュボードも再取得させる
-    clearCache('dashboard_summary')
+    clearCache('dashboard_all') // ダッシュボードも再取得させる
   }
 
   const openNew = () => {

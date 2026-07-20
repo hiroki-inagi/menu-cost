@@ -33,10 +33,8 @@ export default function Layout({ user, onLogout }: { user: User; onLogout: () =>
       const now = new Date()
       const y = now.getFullYear()
       const m = now.getMonth() + 1
-      const [summary, ranking, breakdown, heatmap, salesWeek, weatherAll, weatherToday, recommend, monthlySales] = await Promise.allSettled([
-        dashboardApi.summary(),
-        dashboardApi.costRanking(),
-        dashboardApi.categoryBreakdown(),
+      const [dashAll, heatmap, salesWeek, weatherAll, weatherToday, recommend, monthlySales] = await Promise.allSettled([
+        dashboardApi.all(),
         salesApi.byWeekday(),
         salesApi.ranking('week'),
         salesApi.byWeather(undefined),
@@ -44,9 +42,7 @@ export default function Layout({ user, onLogout }: { user: User; onLogout: () =>
         salesApi.todayRecommend(),
         salesApi.monthlySales(y, m),
       ])
-      if (summary.status === 'fulfilled')    setCached('dashboard_summary', summary.value)
-      if (ranking.status === 'fulfilled')    setCached('dashboard_ranking', ranking.value)
-      if (breakdown.status === 'fulfilled')  setCached('dashboard_breakdown', breakdown.value)
+      if (dashAll.status === 'fulfilled')    setCached('dashboard_all', dashAll.value)
       if (heatmap.status === 'fulfilled')    setCached('sales_heatmap', heatmap.value)
       if (salesWeek.status === 'fulfilled')  setCached('sales_ranking_week', salesWeek.value)
       if (weatherAll.status === 'fulfilled') setCached('sales_weather_all', weatherAll.value)

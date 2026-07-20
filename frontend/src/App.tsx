@@ -1,20 +1,31 @@
 ﻿import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { Suspense, lazy, useEffect, useState } from 'react'
 import { authApi } from './api/auth'
 import { User } from './types'
 import Layout from './components/layout/Layout'
-import LoginPage from './pages/LoginPage'
-import RegisterPage from './pages/RegisterPage'
-import DashboardPage from './pages/DashboardPage'
-import IngredientsPage from './pages/IngredientsPage'
-import RecipesPage from './pages/RecipesPage'
-import RecipeDetailPage from './pages/RecipeDetailPage'
-import SuppliersPage from './pages/SuppliersPage'
-import SalesAnalysisPage from './pages/SalesAnalysisPage'
-import SalesInputPage from './pages/SalesInputPage'
-import SettingsPage from './pages/SettingsPage'
-import FormulasPage from './pages/FormulasPage'
-import TargetRevenuePage from './pages/TargetRevenuePage'
+
+// ── ページの遅延読み込み（recharts等の重いライブラリを初期表示から除外し、爆速表示を実現）──
+const LoginPage         = lazy(() => import('./pages/LoginPage'))
+const RegisterPage      = lazy(() => import('./pages/RegisterPage'))
+const DashboardPage     = lazy(() => import('./pages/DashboardPage'))
+const IngredientsPage   = lazy(() => import('./pages/IngredientsPage'))
+const RecipesPage       = lazy(() => import('./pages/RecipesPage'))
+const RecipeDetailPage  = lazy(() => import('./pages/RecipeDetailPage'))
+const SuppliersPage     = lazy(() => import('./pages/SuppliersPage'))
+const SalesAnalysisPage = lazy(() => import('./pages/SalesAnalysisPage'))
+const SalesInputPage    = lazy(() => import('./pages/SalesInputPage'))
+const SettingsPage      = lazy(() => import('./pages/SettingsPage'))
+const FormulasPage      = lazy(() => import('./pages/FormulasPage'))
+const TargetRevenuePage = lazy(() => import('./pages/TargetRevenuePage'))
+
+/** ページ読み込み中のフォールバック（軽量スピナー） */
+function PageLoader() {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  )
+}
 
 function PrivateRoute({ user, children }: { user: User | null; children: React.ReactNode }) {
   if (!user) return <Navigate to="/login" replace />
@@ -82,6 +93,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <Suspense fallback={<PageLoader />}>
       <Routes>
         <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
         <Route path="/register" element={<RegisterPage onRegister={handleLogin} />} />
@@ -103,6 +115,7 @@ export default function App() {
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </Suspense>
     </BrowserRouter>
   )
 }

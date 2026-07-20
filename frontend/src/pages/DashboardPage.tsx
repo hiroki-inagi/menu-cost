@@ -223,11 +223,13 @@ function MonthlySalesCalendar() {
 }
 
 export default function DashboardPage() {
-  const { data: summary } = useCachedFetch('dashboard_summary', () => dashboardApi.summary())
-  const { data: rankingRaw } = useCachedFetch('dashboard_ranking', () => dashboardApi.costRanking())
-  const { data: breakdownRaw } = useCachedFetch('dashboard_breakdown', () => dashboardApi.categoryBreakdown())
-  const ranking: any[] = (rankingRaw as any[] | null)?.slice(0, 8) ?? []
-  const breakdown: any[] = (breakdownRaw as any[] | null) ?? []
+  // summary/ranking/breakdown を1リクエストで一括取得（3往復→1往復に削減し爆速表示）
+  const { data: dashAll } = useCachedFetch('dashboard_all', () => dashboardApi.all()) as {
+    data: { summary: any; ranking: any[]; breakdown: any[] } | null
+  }
+  const summary = dashAll?.summary ?? null
+  const ranking: any[] = (dashAll?.ranking ?? []).slice(0, 8)
+  const breakdown: any[] = dashAll?.breakdown ?? []
   // 天気・おすすめもキャッシュから即表示し、裏で更新
   const { data: weather } = useCachedFetch<TodayWeather>('weather_today', () => weatherApi.today())
   const { data: recommendsData } = useCachedFetch<TodayRecommend[]>('today_recommend', () => salesApi.todayRecommend())

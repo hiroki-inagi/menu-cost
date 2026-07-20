@@ -2,7 +2,7 @@
  * stale-while-revalidate フック
  *
  * 使い方:
- *   const { data, loading } = useCachedFetch('dashboard_summary', () => dashboardApi.summary())
+ *   const { data, loading } = useCachedFetch('dashboard_all', () => dashboardApi.all())
  *
  * - キャッシュがあれば loading=false で即座にデータ表示
  * - 裏でAPIを叩いてデータを更新

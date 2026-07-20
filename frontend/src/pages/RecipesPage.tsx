@@ -54,9 +54,7 @@ export default function RecipesPage() {
     ])
     setCached('all_recipes', fresh)
     setCached('recipes_active', freshActive)
-    clearCache('dashboard_summary')
-    clearCache('dashboard_ranking')
-    clearCache('dashboard_breakdown')
+    clearCache('dashboard_all')
   }
 
   const openNew = () => {
