@@ -5,7 +5,9 @@
  */
 
 const CACHE_PREFIX = 'mc_cache_'
-const DEFAULT_TTL_MS = 5 * 60 * 1000 // 5分
+// stale-while-revalidate: 表示は常にキャッシュから即時、裏でAPIが最新化するため
+// TTLは長めでよい(古すぎるデータだけ捨てる)
+const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000 // 24時間
 
 interface CacheEntry<T> {
   data: T
@@ -17,7 +19,7 @@ export function getCached<T>(key: string): T | null {
     const raw = localStorage.getItem(CACHE_PREFIX + key)
     if (!raw) return null
     const entry: CacheEntry<T> = JSON.parse(raw)
-    // 5分以上古いキャッシュは無視
+    // 24時間以上古いキャッシュのみ無視(それ以外は即表示し裏で更新)
     if (Date.now() - entry.timestamp > DEFAULT_TTL_MS) return null
     return entry.data
   } catch {

@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback } from 'react'
+import { useState, useMemo } from 'react'
 import { dashboardApi } from '../api/dashboard'
 import { weatherApi } from '../api/weather'
 import { salesApi } from '../api/sales'
@@ -20,24 +20,16 @@ function MonthlySalesCalendar() {
   const today = new Date()
   const [year, setYear] = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth() + 1) // 1-indexed
-  const [monthData, setMonthData] = useState<any>(null)
-  const [loading, setLoading] = useState(false)
   const [selectedDate, setSelectedDate] = useState<string | null>(
     // デフォルトで今日を選択
     `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
   )
 
-  const fetchMonth = useCallback(async (y: number, m: number) => {
-    setLoading(true)
-    try {
-      const data = await salesApi.monthlySales(y, m)
-      setMonthData(data)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => { fetchMonth(year, month) }, [year, month, fetchMonth])
+  // キャッシュがあれば即表示、裏で最新データに更新
+  const { data: monthData, loading } = useCachedFetch(
+    `monthly_sales_${year}_${String(month).padStart(2, '0')}`,
+    () => salesApi.monthlySales(year, month)
+  ) as { data: any; loading: boolean }
 
   const prevMonth = () => {
     if (month === 1) { setYear(y => y - 1); setMonth(12) }
@@ -236,12 +228,10 @@ export default function DashboardPage() {
   const { data: breakdownRaw } = useCachedFetch('dashboard_breakdown', () => dashboardApi.categoryBreakdown())
   const ranking: any[] = (rankingRaw as any[] | null)?.slice(0, 8) ?? []
   const breakdown: any[] = (breakdownRaw as any[] | null) ?? []
-  const [weather, setWeather] = useState<TodayWeather | null>(null)
-  const [recommends, setRecommends] = useState<TodayRecommend[]>([])
-
-  useEffect(() => {
-    weatherApi.today().then(w => { setWeather(w); salesApi.todayRecommend().then(setRecommends) }).catch(() => {})
-  }, [])
+  // 天気・おすすめもキャッシュから即表示し、裏で更新
+  const { data: weather } = useCachedFetch<TodayWeather>('weather_today', () => weatherApi.today())
+  const { data: recommendsData } = useCachedFetch<TodayRecommend[]>('today_recommend', () => salesApi.todayRecommend())
+  const recommends: TodayRecommend[] = recommendsData ?? []
 
   const kpis = summary ? [
     { label: 'メニュー数', value: summary.total_recipes, icon: BookOpen, color: 'text-blue-400' },

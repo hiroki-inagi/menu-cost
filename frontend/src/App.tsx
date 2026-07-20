@@ -21,15 +21,59 @@ function PrivateRoute({ user, children }: { user: User | null; children: React.R
   return <>{children}</>
 }
 
+const USER_CACHE_KEY = 'mc_user'
+
+function readCachedUser(): User | null {
+  try {
+    const raw = localStorage.getItem(USER_CACHE_KEY)
+    return raw ? (JSON.parse(raw) as User) : null
+  } catch {
+    return null
+  }
+}
+
 export default function App() {
-  const [user, setUser] = useState<User | null | undefined>(undefined)
+  // 起動時: トークン + キャッシュ済みユーザーがあれば検証を待たずに即描画(爆速表示)
+  const [user, setUser] = useState<User | null | undefined>(() => {
+    const token = localStorage.getItem('token')
+    if (!token) return null
+    return readCachedUser() ?? undefined
+  })
+
+  const handleLogin = (u: User) => {
+    try { localStorage.setItem(USER_CACHE_KEY, JSON.stringify(u)) } catch { /* ignore */ }
+    setUser(u)
+  }
+
+  const handleLogout = () => {
+    localStorage.removeItem('token')
+    localStorage.removeItem(USER_CACHE_KEY)
+    setUser(null)
+  }
 
   useEffect(() => {
     const token = localStorage.getItem('token')
-    if (!token) { setUser(null); return }
-    authApi.me().then(setUser).catch(() => { localStorage.removeItem('token'); setUser(null) })
+    if (!token) return
+    // 裏でトークンを検証しユーザー情報を最新化(画面はブロックしない)
+    authApi.me()
+      .then((u) => {
+        try { localStorage.setItem(USER_CACHE_KEY, JSON.stringify(u)) } catch { /* ignore */ }
+        setUser(u)
+      })
+      .catch((err) => {
+        // 401(トークン無効)のみログアウト。ネットワークエラーやコールドスタートでは
+        // キャッシュ済みユーザーで表示を継続する
+        if (err?.response?.status === 401) {
+          localStorage.removeItem('token')
+          localStorage.removeItem(USER_CACHE_KEY)
+          setUser(null)
+        } else if (!readCachedUser()) {
+          setUser(null)
+        }
+      })
   }, [])
 
+  // キャッシュなし・トークンありの初回のみ短時間スピナー
   if (user === undefined) return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
@@ -39,11 +83,11 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={<LoginPage onLogin={setUser} />} />
-        <Route path="/register" element={<RegisterPage onRegister={setUser} />} />
+        <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
+        <Route path="/register" element={<RegisterPage onRegister={handleLogin} />} />
         <Route path="/" element={
           <PrivateRoute user={user}>
-            <Layout user={user!} onLogout={() => { localStorage.removeItem('token'); setUser(null) }} />
+            <Layout user={user!} onLogout={handleLogout} />
           </PrivateRoute>
         }>
           <Route index element={<DashboardPage />} />

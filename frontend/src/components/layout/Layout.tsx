@@ -9,6 +9,7 @@ import { ingredientApi } from '../../api/ingredients'
 import { recipeApi } from '../../api/recipes'
 import { supplierApi } from '../../api/suppliers'
 import { salesApi } from '../../api/sales'
+import { weatherApi } from '../../api/weather'
 
 export default function Layout({ user, onLogout }: { user: User; onLogout: () => void }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -29,13 +30,19 @@ export default function Layout({ user, onLogout }: { user: User; onLogout: () =>
       if (suppliers.status === 'fulfilled')   setCached('suppliers', suppliers.value)
 
       // 優先度中: ダッシュボード・売上
-      const [summary, ranking, breakdown, heatmap, salesWeek, weatherAll] = await Promise.allSettled([
+      const now = new Date()
+      const y = now.getFullYear()
+      const m = now.getMonth() + 1
+      const [summary, ranking, breakdown, heatmap, salesWeek, weatherAll, weatherToday, recommend, monthlySales] = await Promise.allSettled([
         dashboardApi.summary(),
         dashboardApi.costRanking(),
         dashboardApi.categoryBreakdown(),
         salesApi.byWeekday(),
         salesApi.ranking('week'),
         salesApi.byWeather(undefined),
+        weatherApi.today(),
+        salesApi.todayRecommend(),
+        salesApi.monthlySales(y, m),
       ])
       if (summary.status === 'fulfilled')    setCached('dashboard_summary', summary.value)
       if (ranking.status === 'fulfilled')    setCached('dashboard_ranking', ranking.value)
@@ -43,6 +50,9 @@ export default function Layout({ user, onLogout }: { user: User; onLogout: () =>
       if (heatmap.status === 'fulfilled')    setCached('sales_heatmap', heatmap.value)
       if (salesWeek.status === 'fulfilled')  setCached('sales_ranking_week', salesWeek.value)
       if (weatherAll.status === 'fulfilled') setCached('sales_weather_all', weatherAll.value)
+      if (weatherToday.status === 'fulfilled') setCached('weather_today', weatherToday.value)
+      if (recommend.status === 'fulfilled')  setCached('today_recommend', recommend.value)
+      if (monthlySales.status === 'fulfilled') setCached(`monthly_sales_${y}_${String(m).padStart(2, '0')}`, monthlySales.value)
 
       // 優先度低: 他の期間の売上ランキング
       const [salesDay, salesMonth] = await Promise.allSettled([
