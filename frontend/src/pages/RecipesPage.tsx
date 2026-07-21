@@ -6,7 +6,7 @@ import { Recipe, Ingredient } from '../types'
 import { Plus, Trash2, X, ChevronRight } from 'lucide-react'
 import CostRateBadge from '../components/common/CostRateBadge'
 import { useCachedFetch } from '../hooks/useCachedFetch'
-import { clearCache, setCached } from '../api/cache'
+import { invalidateCache, setCached } from '../api/cache'
 
 const CATEGORIES = ['前菜', 'スープ', 'メイン', 'サイド', 'デザート', 'ドリンク', 'その他']
 
@@ -54,7 +54,8 @@ export default function RecipesPage() {
     ])
     setCached('all_recipes', fresh)
     setCached('recipes_active', freshActive)
-    clearCache('dashboard_all')
+    // ダッシュボードは前回値を残したまま裏で再取得させる
+    invalidateCache('dashboard_all')
   }
 
   const openNew = () => {

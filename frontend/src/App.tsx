@@ -1,6 +1,8 @@
 ﻿import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Suspense, lazy, useEffect, useState } from 'react'
 import { authApi } from './api/auth'
+import { clearSession, USER_CACHE_KEY } from './api/session'
+import { prefetchAll } from './store/prefetch'
 import { User } from './types'
 import Layout from './components/layout/Layout'
 
@@ -32,8 +34,6 @@ function PrivateRoute({ user, children }: { user: User | null; children: React.R
   return <>{children}</>
 }
 
-const USER_CACHE_KEY = 'mc_user'
-
 function readCachedUser(): User | null {
   try {
     const raw = localStorage.getItem(USER_CACHE_KEY)
@@ -57,15 +57,20 @@ export default function App() {
   }
 
   const handleLogout = () => {
-    localStorage.removeItem('token')
-    localStorage.removeItem(USER_CACHE_KEY)
+    clearSession()
     setUser(null)
   }
 
   useEffect(() => {
     const token = localStorage.getItem('token')
     if (!token) return
+
+    // トークンがある時点で全画面ぶんのデータを先読みしておく(表示はブロックしない)
+    prefetchAll()
+
     // 裏でトークンを検証しユーザー情報を最新化(画面はブロックしない)
+    // 401 は client.ts のリフレッシュ処理を通るため、ここに来るのは
+    // リフレッシュも失敗した本当に無効なセッションのみ
     authApi.me()
       .then((u) => {
         try { localStorage.setItem(USER_CACHE_KEY, JSON.stringify(u)) } catch { /* ignore */ }
@@ -75,8 +80,7 @@ export default function App() {
         // 401(トークン無効)のみログアウト。ネットワークエラーやコールドスタートでは
         // キャッシュ済みユーザーで表示を継続する
         if (err?.response?.status === 401) {
-          localStorage.removeItem('token')
-          localStorage.removeItem(USER_CACHE_KEY)
+          clearSession()
           setUser(null)
         } else if (!readCachedUser()) {
           setUser(null)

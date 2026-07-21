@@ -1,48 +1,33 @@
 /**
  * stale-while-revalidate キャッシュユーティリティ
- * - キャッシュがあれば即座に返す（表示が瞬時になる）
- * - 裏でAPIを叩いて新しいデータに更新する
+ *
+ * 実体は store/dataStore.ts の共有ストア。
+ * ここは既存コードから使われている関数名を維持するための薄いラッパー。
+ *
+ * 従来との違い:
+ *   - setCached / clearCache が「同じキーを見ている全画面」に即座に反映される
+ *   - 同じキーへの同時リクエストが1本にまとまる
  */
-
-const CACHE_PREFIX = 'mc_cache_'
-// stale-while-revalidate: 表示は常にキャッシュから即時、裏でAPIが最新化するため
-// TTLは長めでよい(古すぎるデータだけ捨てる)
-const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000 // 24時間
-
-interface CacheEntry<T> {
-  data: T
-  timestamp: number
-}
+import { getStore, invalidate, markStale, primeStore } from '../store/dataStore'
 
 export function getCached<T>(key: string): T | null {
-  try {
-    const raw = localStorage.getItem(CACHE_PREFIX + key)
-    if (!raw) return null
-    const entry: CacheEntry<T> = JSON.parse(raw)
-    // 24時間以上古いキャッシュのみ無視(それ以外は即表示し裏で更新)
-    if (Date.now() - entry.timestamp > DEFAULT_TTL_MS) return null
-    return entry.data
-  } catch {
-    return null
-  }
+  return getStore<T>(key).get()
 }
 
+/** 取得済みデータでキャッシュを更新する（購読中の画面へ即反映される） */
 export function setCached<T>(key: string, data: T): void {
-  try {
-    const entry: CacheEntry<T> = { data, timestamp: Date.now() }
-    localStorage.setItem(CACHE_PREFIX + key, JSON.stringify(entry))
-  } catch {
-    // localStorage がいっぱいの場合は無視
-  }
+  primeStore<T>(key, data)
 }
 
+/** キー指定で破棄。省略時は全キャッシュを破棄（ログアウト時など） */
 export function clearCache(key?: string): void {
-  if (key) {
-    localStorage.removeItem(CACHE_PREFIX + key)
-  } else {
-    // 全キャッシュを削除
-    Object.keys(localStorage)
-      .filter((k) => k.startsWith(CACHE_PREFIX))
-      .forEach((k) => localStorage.removeItem(k))
-  }
+  invalidate(key)
+}
+
+/**
+ * データを残したまま再取得対象にする（推奨）。
+ * clearCache と違い、次に開いたとき前回値が即表示されてから最新化される。
+ */
+export function invalidateCache(key: string): void {
+  markStale(key)
 }

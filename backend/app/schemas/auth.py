@@ -19,7 +19,12 @@ class ChangePasswordRequest(BaseModel):
 
 class Token(BaseModel):
     access_token: str
+    # 旧クライアント互換のため任意項目にしている（未対応クライアントは無視するだけで動く）
+    refresh_token: Optional[str] = None
     token_type: str = "bearer"
+
+class RefreshRequest(BaseModel):
+    refresh_token: str
 
 class UserResponse(BaseModel):
     id: uuid.UUID

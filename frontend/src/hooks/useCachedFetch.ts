@@ -1,15 +1,16 @@
 /**
  * stale-while-revalidate フック
  *
- * 使い方:
+ * 使い方（従来と同じ）:
  *   const { data, loading } = useCachedFetch('dashboard_all', () => dashboardApi.all())
  *
- * - キャッシュがあれば loading=false で即座にデータ表示
- * - 裏でAPIを叩いてデータを更新
- * - cacheKey が変わったとき（例: 期間切り替え）も新しいキャッシュを即座に反映
+ * - キャッシュがあれば loading=false で即座にデータ表示（待ち時間ゼロ）
+ * - 裏でAPIを叩いて最新化。中身が変わったときだけ再描画する
+ * - 同じキーを複数ページが使っても API 呼び出しは1本に集約される
+ * - 他の画面が同じキーを更新すると即座に追従する（購読型）
  */
-import { useState, useEffect, useRef } from 'react'
-import { getCached, setCached } from '../api/cache'
+import { useEffect, useRef, useState } from 'react'
+import { getStore } from '../store/dataStore'
 
 interface Options {
   enabled?: boolean
@@ -22,39 +23,44 @@ export function useCachedFetch<T>(
 ) {
   const { enabled = true } = options
 
-  // cacheKey が変わるたびに最新キャッシュを即反映するため関数初期化
-  const [data, setData] = useState<T | null>(() => getCached<T>(cacheKey))
-  const [loading, setLoading] = useState<boolean>(() => getCached<T>(cacheKey) === null)
-  const isMounted = useRef(true)
+  const store = getStore<T>(cacheKey)
 
-  useEffect(() => {
-    isMounted.current = true
-    return () => { isMounted.current = false }
-  }, [])
+  // cacheKey が変わるたびに最新キャッシュを即反映するため関数初期化
+  const [data, setData] = useState<T | null>(() => store.get())
+  const [loading, setLoading] = useState<boolean>(() => store.get() === null)
+
+  // fetcher は毎レンダー新しい関数になるため ref に逃がす（依存配列に入れない）
+  const fetcherRef = useRef(fetcher)
+  fetcherRef.current = fetcher
 
   useEffect(() => {
     if (!enabled) return
 
-    // キー変更時: 新しいキーのキャッシュがあれば即表示、なければローディング
-    const cached = getCached<T>(cacheKey)
-    if (cached !== null) {
-      setData(cached)
-      setLoading(false)
-    } else {
-      setLoading(true)
-    }
+    let alive = true
+    const current = getStore<T>(cacheKey)
 
-    fetcher()
-      .then((fresh) => {
-        if (!isMounted.current) return
-        setCached(cacheKey, fresh)
-        setData(fresh)
-        setLoading(false)
-      })
-      .catch(() => {
-        if (!isMounted.current) return
-        setLoading(false)
-      })
+    // キー変更時: 新しいキーのキャッシュがあれば即表示、なければローディング
+    const cached = current.get()
+    setData(cached)
+    setLoading(cached === null)
+
+    // 同じキーの更新を購読（他画面での保存も即座に反映される）
+    const unsubscribe = current.subscribe(() => {
+      if (!alive) return
+      setData(current.get())
+      setLoading(false)
+    })
+
+    // 古ければ裏で再取得（同時呼び出しは1本に集約される）
+    current
+      .revalidate(() => fetcherRef.current())
+      .then(() => { if (alive) setLoading(false) })
+      .catch(() => { if (alive) setLoading(false) })
+
+    return () => {
+      alive = false
+      unsubscribe()
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cacheKey, enabled])
 

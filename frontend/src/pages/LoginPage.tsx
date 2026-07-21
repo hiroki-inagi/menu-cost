@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { authApi } from '../api/auth'
+import { saveSession, clearSession } from '../api/session'
+import { prefetchAll } from '../store/prefetch'
 import { User } from '../types'
 import { UtensilsCrossed } from 'lucide-react'
 
@@ -24,10 +26,14 @@ export default function LoginPage({ onLogin }: { onLogin: (u: User) => void }) {
     const maxAttempts = 3
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        const { access_token } = await authApi.login(email, password)
-        localStorage.setItem('token', access_token)
+        // 別アカウントのキャッシュが残らないよう、ログイン前に一度クリアする
+        clearSession()
+        const tokens = await authApi.login(email, password)
+        saveSession(tokens)
         const user = await authApi.me()
         onLogin(user)
+        // 各画面のデータを先読み（画面遷移はブロックしない）
+        prefetchAll()
         navigate('/')
         return
       } catch (err: any) {

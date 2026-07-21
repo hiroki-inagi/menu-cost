@@ -5,7 +5,7 @@ import { supplierApi } from '../api/suppliers'
 import { Plus, Search, Pencil, Trash2, X, TrendingUp } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { useCachedFetch } from '../hooks/useCachedFetch'
-import { clearCache, setCached } from '../api/cache'
+import { invalidateCache, setCached } from '../api/cache'
 
 const CATEGORIES = ['肉類', '魚介類', '野菜', '乳製品', '調味料', '飲料', 'その他']
 
@@ -56,7 +56,8 @@ export default function IngredientsPage() {
   const refreshIngredients = async () => {
     const fresh = await ingredientApi.list()
     setCached('all_ingredients', fresh)
-    clearCache('dashboard_all') // ダッシュボードも再取得させる
+    // ダッシュボードは「前回値を出しつつ裏で再取得」させる（開いた瞬間に空にしない）
+    invalidateCache('dashboard_all')
   }
 
   const openNew = () => {

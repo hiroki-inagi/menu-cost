@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { authApi } from '../api/auth'
+import { saveSession, clearSession } from '../api/session'
+import { prefetchAll } from '../store/prefetch'
 import { User } from '../types'
 import { UtensilsCrossed, Check, Loader2 } from 'lucide-react'
 
@@ -50,10 +52,13 @@ export default function RegisterPage({ onRegister }: { onRegister: (u: User) => 
           : { store_name: form.store_name }),
       }
       await authApi.register(payload)
-      const { access_token } = await authApi.login(form.email, form.password)
-      localStorage.setItem('token', access_token)
+      // 前ユーザーのキャッシュが残らないようクリアしてからログインする
+      clearSession()
+      const tokens = await authApi.login(form.email, form.password)
+      saveSession(tokens)
       const user = await authApi.me()
       onRegister(user)
+      prefetchAll()
       navigate('/')
     } catch (err: any) {
       setError(err.response?.data?.detail || '登録に失敗しました')

@@ -5,6 +5,8 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "change-me-in-production"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 10080
+    # リフレッシュトークンの有効期限（この期間内はログインを維持できる）
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 90
     OPENWEATHERMAP_API_KEY: str = ""
 
     class Config:

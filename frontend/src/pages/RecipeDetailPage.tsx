@@ -5,12 +5,18 @@ import { ingredientApi } from '../api/ingredients'
 import { Recipe, Ingredient } from '../types'
 import { ArrowLeft, Pencil, Save, X, Trash2, Plus } from 'lucide-react'
 import CostRateBadge from '../components/common/CostRateBadge'
+import { useCachedFetch } from '../hooks/useCachedFetch'
+import { invalidateCache } from '../api/cache'
 
 export default function RecipeDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [recipe, setRecipe] = useState<Recipe | null>(null)
-  const [allIngredients, setAllIngredients] = useState<Ingredient[]>([])
+
+  // 材料一覧は共有キャッシュから即座に取得（他ページと通信を共有し、待ち時間ゼロ）
+  const { data: cachedIngredients } = useCachedFetch('all_ingredients', () => ingredientApi.list())
+  const allIngredients: Ingredient[] = (cachedIngredients as Ingredient[] | null) ?? []
+
   const [editingPrice, setEditingPrice] = useState(false)
   const [newPrice, setNewPrice] = useState('')
   const [addingIng, setAddingIng] = useState(false)
@@ -19,21 +25,34 @@ export default function RecipeDetailPage() {
   const [editIng, setEditIng] = useState({ ingredient_id: '', quantity: '', yield_rate: '1' })
 
   const load = () => recipeApi.get(id!).then(setRecipe)
-  useEffect(() => { load(); ingredientApi.list().then(setAllIngredients) }, [id])
+
+  /**
+   * 変更を保存した後の再読み込み。
+   * 原価が変わるので、一覧とダッシュボードも「次に開いたとき再取得」の印を付ける
+   * （データは残すので、開いた瞬間は前回値が出てから最新化される）
+   */
+  const reload = async () => {
+    await load()
+    invalidateCache('all_recipes')
+    invalidateCache('recipes_active')
+    invalidateCache('dashboard_all')
+  }
+
+  useEffect(() => { load() }, [id])
 
   const savePrice = async () => {
     await recipeApi.update(id!, { selling_price: Number(newPrice) })
-    setEditingPrice(false); load()
+    setEditingPrice(false); reload()
   }
 
   const removeIng = async (riId: string) => {
-    await recipeApi.removeIngredient(id!, riId); load()
+    await recipeApi.removeIngredient(id!, riId); reload()
   }
 
   const addIng = async () => {
     if (!newIng.ingredient_id || !newIng.quantity) return
     await recipeApi.addIngredient(id!, { ingredient_id: newIng.ingredient_id, quantity: Number(newIng.quantity), yield_rate: Number(newIng.yield_rate) })
-    setAddingIng(false); setNewIng({ ingredient_id: '', quantity: '', yield_rate: '1' }); load()
+    setAddingIng(false); setNewIng({ ingredient_id: '', quantity: '', yield_rate: '1' }); reload()
   }
 
   const startEditIng = (ri: Recipe['recipe_ingredients'][number]) => {
@@ -49,7 +68,7 @@ export default function RecipeDetailPage() {
       quantity: Number(editIng.quantity),
       yield_rate: Number(editIng.yield_rate),
     })
-    setEditingRiId(null); load()
+    setEditingRiId(null); reload()
   }
 
   if (!recipe) return <div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" /></div>

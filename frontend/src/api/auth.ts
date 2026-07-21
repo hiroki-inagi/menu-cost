@@ -11,10 +11,13 @@ export const authApi = {
     const form = new URLSearchParams()
     form.append('username', email)
     form.append('password', password)
-    return api.post<{ access_token: string }>('/auth/login', form, {
+    return api.post<{ access_token: string; refresh_token?: string }>('/auth/login', form, {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     }).then(r => r.data)
   },
+  refresh: (refresh_token: string) =>
+    api.post<{ access_token: string; refresh_token?: string }>('/auth/refresh', { refresh_token })
+      .then(r => r.data),
   me: () => api.get<User>('/auth/me').then(r => r.data),
   changePassword: (current_password: string, new_password: string) =>
     api.post<{ message: string }>('/auth/change-password', { current_password, new_password }).then(r => r.data),

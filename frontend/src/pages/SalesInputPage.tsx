@@ -4,6 +4,7 @@ import { salesApi } from '../api/sales'
 import { Recipe, DailySales } from '../types'
 import { Save, CheckCircle } from 'lucide-react'
 import { useCachedFetch } from '../hooks/useCachedFetch'
+import { invalidateCache } from '../api/cache'
 
 export default function SalesInputPage() {
   // キャッシュ済みのアクティブレシピを即座に表示
@@ -35,6 +36,20 @@ export default function SalesInputPage() {
         .filter(([, qty]) => qty > 0)
         .map(([recipe_id, quantity]) => ({ recipe_id, quantity }))
       await salesApi.upsertDaily({ sold_date: date, entries })
+
+      // 売上に依存する画面を再取得対象にする（データは残すので開いた瞬間は前回値が出る）
+      const d = new Date(date)
+      ;[
+        'dashboard_all',
+        'sales_ranking_day',
+        'sales_ranking_week',
+        'sales_ranking_month',
+        'sales_heatmap',
+        'sales_weather_all',
+        'today_recommend',
+        `monthly_sales_${d.getFullYear()}_${String(d.getMonth() + 1).padStart(2, '0')}`,
+      ].forEach(invalidateCache)
+
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
     } finally { setLoading(false) }
