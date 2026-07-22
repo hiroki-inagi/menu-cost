@@ -21,6 +21,26 @@ def _run_startup_migrations() -> None:
         ))
         conn.commit()
 
+        # --- セキュリティ: public スキーマの全テーブルで RLS を有効化 ---
+        # Supabase はデータAPI(PostgREST)で public テーブルを自動公開するため、
+        # RLS未設定だと anon key で第三者に read/edit/delete される。
+        # ポリシー無しでRLS有効化 = API経由(anon/authenticated)は全拒否。
+        # バックエンドは所有者(postgres)で直接接続しRLSをバイパスするため、
+        # 機能・データには一切影響しない(FORCEは使わない)。冪等。
+        # モデル定義に無いテーブル(alembic_version, 旧 password_reset_tokens 等)も
+        # 取りこぼさないよう、public スキーマ全体を走査して適用する。
+        conn.execute(text("""
+            DO $$
+            DECLARE r RECORD;
+            BEGIN
+              FOR r IN SELECT tablename FROM pg_tables WHERE schemaname = 'public'
+              LOOP
+                EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', r.tablename);
+              END LOOP;
+            END $$;
+        """))
+        conn.commit()
+
         # 招待コード未発行の既存店舗にコードを発行する
         from app.services.invite_code import _random_code
 
